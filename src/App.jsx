@@ -144,7 +144,7 @@ const DURATIONS = [
   { id: 'grande', i18nKey: 'grande', reg: 120, ext: 40 }
 ];
 
-const BALL_RADIUS = 28; 
+// O raio da bola virou dinâmico e será controlado por uma Ref no React
 const GRAVITY = 0;           
 const BOUNCE_IMPULSE = 1.0;  
 const FRICTION = 1.0;        
@@ -162,6 +162,8 @@ const FutebolBolinhas = () => {
   const langRef = useRef('pt');
 
   const [isMobile, setIsMobile] = useState(false);
+  const ballRadiusRef = useRef(28); // REF PARA O TAMANHO DA BOLA DINÂMICO
+
   const [activeLeagueId, setActiveLeagueId] = useState('PAULISTAO');
   const [displayedTeams, setDisplayedTeams] = useState(PAULISTAO_TEAMS);
   const teamsCache = useRef({ 'PAULISTAO': PAULISTAO_TEAMS });
@@ -198,15 +200,17 @@ const FutebolBolinhas = () => {
 
   const [crowd, setCrowd] = useState([]);
 
-  const audioHit = useRef(new Audio('/hit.mp3'));
-  const audioGoal = useRef(new Audio('/goal.mp3'));
-  const audioExtra = useRef(new Audio('/prorroga.mp3')); 
-  const audioEnd = useRef(new Audio('/final.mp3')); 
-  const audioCrowdBg = useRef(new Audio('/crowd_bg.mp3'));
+  const audioHit = useRef(typeof Audio !== 'undefined' ? new Audio('/hit.mp3') : null);
+  const audioGoal = useRef(typeof Audio !== 'undefined' ? new Audio('/goal.mp3') : null);
+  const audioExtra = useRef(typeof Audio !== 'undefined' ? new Audio('/prorroga.mp3') : null); 
+  const audioEnd = useRef(typeof Audio !== 'undefined' ? new Audio('/final.mp3') : null); 
+  const audioCrowdBg = useRef(typeof Audio !== 'undefined' ? new Audio('/crowd_bg.mp3') : null);
 
   useEffect(() => {
-    audioCrowdBg.current.loop = true;
-    audioCrowdBg.current.volume = 0.2; 
+    if (audioCrowdBg.current) {
+        audioCrowdBg.current.loop = true;
+        audioCrowdBg.current.volume = 0.2; 
+    }
 
     const dots = [];
     const totalDots = 100;
@@ -236,16 +240,20 @@ const FutebolBolinhas = () => {
   };
 
   const triggerGoalEffects = (team) => {
-    audioGoal.current.currentTime = 0;
-    audioGoal.current.volume = 0.8;
-    audioGoal.current.play().catch(() => {});
+    if (audioGoal.current) {
+        audioGoal.current.currentTime = 0;
+        audioGoal.current.volume = 0.8;
+        audioGoal.current.play().catch(() => {});
+    }
     confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: [team.color || '#ffffff', '#00ff66', '#ffffff'] });
   };
 
   const playHit = () => {
-    audioHit.current.currentTime = 0;
-    audioHit.current.volume = 0.4;
-    audioHit.current.play().catch(() => {});
+    if (audioHit.current) {
+        audioHit.current.currentTime = 0;
+        audioHit.current.volume = 0.4;
+        audioHit.current.play().catch(() => {});
+    }
   };
 
   const handleLeagueChange = async (league) => {
@@ -276,6 +284,10 @@ const FutebolBolinhas = () => {
     const handleResize = () => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
+      
+      // Ajusta o raio da bola dependendo da tela:
+      ballRadiusRef.current = mobile ? 16 : 28;
+
       const offsetHeight = phase === 'PENALTIES' ? (mobile ? 200 : 280) : (mobile ? 100 : 130);
       const availableHeight = window.innerHeight - offsetHeight; 
       const availableWidth = window.innerWidth - (mobile ? 20 : 40);
@@ -324,8 +336,10 @@ const FutebolBolinhas = () => {
     
     setPhase('PLAYING');
     showAnnouncement(i18n[langRef.current].matchStarts);
-    audioCrowdBg.current.currentTime = 0;
-    audioCrowdBg.current.play().catch(() => {});
+    if (audioCrowdBg.current) {
+        audioCrowdBg.current.currentTime = 0;
+        audioCrowdBg.current.play().catch(() => {});
+    }
   };
 
   const startPenalties = () => {
@@ -415,7 +429,9 @@ const FutebolBolinhas = () => {
             if (enableExtraTime) {
               setIsExtraTime(true);
               showAnnouncement(i18n[langRef.current].extraTimeAnnounce);
-              audioExtra.current.currentTime = 0; audioExtra.current.play().catch(()=>{});
+              if (audioExtra.current) {
+                  audioExtra.current.currentTime = 0; audioExtra.current.play().catch(()=>{});
+              }
               return nextTime; 
             } else if (enablePenalties) {
               startPenalties(); return prev;
@@ -438,10 +454,12 @@ const FutebolBolinhas = () => {
     clearInterval(timerRef.current);
     gameState.current.isPlaying = false;
     setPhase('GAMEOVER');
-    audioEnd.current.currentTime = 0; 
-    audioEnd.current.volume = 0.7; 
-    audioEnd.current.play().catch(()=>{});
-    audioCrowdBg.current.pause(); 
+    if (audioEnd.current) {
+        audioEnd.current.currentTime = 0; 
+        audioEnd.current.volume = 0.7; 
+        audioEnd.current.play().catch(()=>{});
+    }
+    if (audioCrowdBg.current) audioCrowdBg.current.pause(); 
     showAnnouncement(i18n[langRef.current].fullTime);
   };
 
@@ -457,10 +475,14 @@ const FutebolBolinhas = () => {
     const state = gameState.current;
     const pState = penRef.current;
     const { holeSize } = configRef.current; 
+    
+    // Puxando o raio dinâmico direto da Ref
+    const currentBallRadius = ballRadiusRef.current;
+    
     const wallWidth = 15; 
     const wallRadius = (gameSize / 2) - wallWidth; 
-    const innerLimit = wallRadius - BALL_RADIUS; 
-    const outerLimit = wallRadius + BALL_RADIUS; 
+    const innerLimit = wallRadius - currentBallRadius; 
+    const outerLimit = wallRadius + currentBallRadius; 
     const currentHoleSizeDeg = pState.active ? PENALTY_HOLE_DEG : holeSize;
     const curRotSpeed = pState.active ? ROTATION_SPEED * 0.4 : ROTATION_SPEED;
     
@@ -487,9 +509,9 @@ const FutebolBolinhas = () => {
       if (b1 && b2 && !b1.scored && !b2.scored) {
         const dx = b2.x - b1.x; const dy = b2.y - b1.y;
         const dist = Math.sqrt(dx*dx + dy*dy);
-        if (dist < BALL_RADIUS * 2) {
+        if (dist < currentBallRadius * 2) {
           const nx = dx/dist; const ny = dy/dist;
-          const overlap = (BALL_RADIUS * 2) - dist;
+          const overlap = (currentBallRadius * 2) - dist;
           b1.x -= nx*overlap*0.5; b1.y -= ny*overlap*0.5; b2.x += nx*overlap*0.5; b2.y += ny*overlap*0.5;
           const p = 2*(b1.vx*nx + b1.vy*ny - b2.vx*nx - b2.vy*ny)/2;
           b1.vx -= p*nx; b1.vy -= p*ny; b2.vx += p*nx; b2.vy += p*ny;
@@ -509,7 +531,7 @@ const FutebolBolinhas = () => {
           let bAng = angle < 0 ? angle + Math.PI*2 : angle;
           let diff = Math.abs(bAng - state.rotation);
           if (diff > Math.PI) diff = (Math.PI*2) - diff;
-          const ballHalfAngle = Math.atan2(BALL_RADIUS, dist);
+          const ballHalfAngle = Math.atan2(currentBallRadius, dist);
           if (diff > holeHalfRad - ballHalfAngle) {
             if (dist <= wallRadius) {
               const nx = ball.x/dist; const ny = ball.y/dist;
@@ -608,42 +630,44 @@ const FutebolBolinhas = () => {
 
       {phase === 'MENU' && (
         <div style={styles.menuOverlay}>
-          <button onClick={toggleLang} style={styles.langBtn}>
+          <button onClick={toggleLang} style={{...styles.langBtn, padding: isMobile ? '12px 20px' : '8px 16px', minHeight: isMobile ? '44px' : 'auto'}}>
             {lang === 'pt' ? '🇺🇸 EN' : '🇧🇷 PT'}
           </button>
-          <button onClick={() => setShowSettings(true)} style={styles.settingsBtn}>{t.settings}</button>
-          <div style={{...styles.header, padding: isMobile ? '20px 10px 10px' : '40px 20px 20px'}}>
-            <h1 style={{...styles.menuTitle, fontSize: isMobile ? '22px' : '28px', marginBottom: isMobile ? '20px' : '40px'}}>ARENA FC</h1>
-            <div style={{...styles.dashboardRow, gap: isMobile ? '10px' : '30px'}}>
-              <div onClick={() => setActiveSelection(1)} style={{...styles.dashCard, height: isMobile ? '100px' : '140px', borderColor: activeSelection === 1 ? '#00ff66' : 'rgba(255,255,255,0.1)'}}>
+          <button onClick={() => setShowSettings(true)} style={{...styles.settingsBtn, padding: isMobile ? '12px 20px' : '8px 16px', minHeight: isMobile ? '44px' : 'auto'}}>
+            {t.settings}
+          </button>
+          <div style={{...styles.header, padding: isMobile ? '70px 15px 10px' : '40px 20px 20px'}}>
+            <h1 style={{...styles.menuTitle, fontSize: isMobile ? '24px' : '28px', marginBottom: isMobile ? '25px' : '40px'}}>ARENA FC</h1>
+            <div style={{...styles.dashboardRow, gap: isMobile ? '15px' : '30px'}}>
+              <div onClick={() => setActiveSelection(1)} style={{...styles.dashCard, height: isMobile ? '120px' : '140px', borderColor: activeSelection === 1 ? '#00ff66' : 'rgba(255,255,255,0.1)'}}>
                 <span style={{...styles.dashLabel, fontSize: isMobile ? '9px' : '10px'}}>{t.home}</span>
                 {team1 ? (
                   <>
-                    <img src={team1.img} style={{...styles.dashLogo, width: isMobile ? '40px' : '55px', height: isMobile ? '40px' : '55px'}} />
-                    <span style={{...styles.dashTeamName, fontSize: isMobile ? '12px' : '14px'}}>{team1.name}</span>
+                    <img src={team1.img} style={{...styles.dashLogo, width: isMobile ? '45px' : '55px', height: isMobile ? '45px' : '55px'}} alt=""/>
+                    <span style={{...styles.dashTeamName, fontSize: isMobile ? '12px' : '14px', textAlign: 'center', padding: '0 5px'}}>{team1.name}</span>
                   </>
                 ) : <span style={styles.dashEmpty}>{t.select}</span>}
               </div>
-              <span style={{...styles.dashVs, fontSize: isMobile ? '14px' : '18px'}}>X</span>
-              <div onClick={() => setActiveSelection(2)} style={{...styles.dashCard, height: isMobile ? '100px' : '140px', borderColor: activeSelection === 2 ? '#00ff66' : 'rgba(255,255,255,0.1)'}}>
+              <span style={{...styles.dashVs, fontSize: isMobile ? '16px' : '18px'}}>X</span>
+              <div onClick={() => setActiveSelection(2)} style={{...styles.dashCard, height: isMobile ? '120px' : '140px', borderColor: activeSelection === 2 ? '#00ff66' : 'rgba(255,255,255,0.1)'}}>
                 <span style={{...styles.dashLabel, fontSize: isMobile ? '9px' : '10px'}}>{t.away}</span>
                 {team2 ? (
                   <>
-                    <img src={team2.img} style={{...styles.dashLogo, width: isMobile ? '40px' : '55px', height: isMobile ? '40px' : '55px'}} />
-                    <span style={{...styles.dashTeamName, fontSize: isMobile ? '12px' : '14px'}}>{team2.name}</span>
+                    <img src={team2.img} style={{...styles.dashLogo, width: isMobile ? '45px' : '55px', height: isMobile ? '45px' : '55px'}} alt="" />
+                    <span style={{...styles.dashTeamName, fontSize: isMobile ? '12px' : '14px', textAlign: 'center', padding: '0 5px'}}>{team2.name}</span>
                   </>
                 ) : <span style={styles.dashEmpty}>{t.select}</span>}
               </div>
             </div>
-            <div style={{height: '50px', marginTop: '25px'}}>
+            <div style={{height: '50px', marginTop: '25px', width: '100%', display: 'flex', justifyContent: 'center'}}>
               {team1 && team2 && (
-                <button onClick={startGame} style={styles.playBtn}>
+                <button onClick={startGame} style={{...styles.playBtn, padding: isMobile ? '0 40px' : '16px 45px', minHeight: isMobile ? '48px' : 'auto', fontSize: isMobile ? '14px' : '13px'}}>
                   {gameMode === 'normal' ? t.startMatch : t.goPenalties}
                 </button>
               )}
             </div>
           </div>
-          <div style={styles.leaguesContainer}>
+          <div style={{...styles.leaguesContainer, padding: isMobile ? '15px 10px' : '10px 20px'}}>
             {LEAGUES.map(league => (
               <button key={league.id} onClick={() => handleLeagueChange(league)}
                 style={{
@@ -651,6 +675,8 @@ const FutebolBolinhas = () => {
                   background: activeLeagueId === league.id ? 'rgba(0, 255, 102, 0.15)' : 'rgba(255,255,255,0.03)',
                   borderColor: activeLeagueId === league.id ? '#00ff66' : 'rgba(255,255,255,0.1)',
                   color: activeLeagueId === league.id ? '#00ff66' : '#aaa',
+                  padding: isMobile ? '12px 20px' : '8px 16px',
+                  minHeight: isMobile ? '44px' : 'auto'
                 }}>
                 <img src={league.img} style={styles.leagueIcon} alt={league.name}/>
                 {t[league.i18nKey]}
@@ -659,17 +685,18 @@ const FutebolBolinhas = () => {
           </div>
           <div style={styles.gridWrapper}>
             {loading ? (
-               <div style={{color:'#00ff66', marginTop:'50px', fontWeight:'300'}}>{t.fetching}</div>
+               <div style={{color:'#00ff66', marginTop:'50px', fontWeight:'300', textAlign: 'center'}}>{t.fetching}</div>
             ) : errorMsg ? (
-               <div style={{color:'#ff3366', marginTop:'50px'}}>{errorMsg}</div>
+               <div style={{color:'#ff3366', marginTop:'50px', textAlign: 'center'}}>{errorMsg}</div>
             ) : (
-              <div style={{...styles.grid, gridTemplateColumns: isMobile ? 'repeat(auto-fill, minmax(75px, 1fr))' : 'repeat(auto-fill, minmax(90px, 1fr))'}}>
+              <div style={{...styles.grid, gridTemplateColumns: isMobile ? 'repeat(auto-fill, minmax(80px, 1fr))' : 'repeat(auto-fill, minmax(90px, 1fr))'}}>
                 {displayedTeams.map(team => (
                   <button key={team.id} onClick={() => handleTeamSelect(team)}
                     style={{
                       ...styles.card,
                       border: ((activeSelection===1 && team1?.id === team.id) || (activeSelection===2 && team2?.id === team.id)) ? '1px solid #00ff66' : '1px solid rgba(255,255,255,0.05)',
-                      opacity: (team1?.id === team.id || team2?.id === team.id) ? 0.3 : 1
+                      opacity: (team1?.id === team.id || team2?.id === team.id) ? 0.3 : 1,
+                      padding: isMobile ? '20px 5px' : '15px 10px'
                     }}>
                     <img src={team.img} alt={team.name} style={{...styles.cardImg, width: isMobile ? '35px' : '40px', height: isMobile ? '35px' : '40px'}} />
                     <span style={{...styles.cardText, fontSize: isMobile ? '10px' : '11px'}}>{team.name}</span>
@@ -683,7 +710,7 @@ const FutebolBolinhas = () => {
 
       {showSettings && (
         <div style={styles.settingsModal}>
-          <div style={{...styles.settingsContent, width: isMobile ? '90%' : '400px', padding: isMobile ? '20px' : '40px'}}>
+          <div style={{...styles.settingsContent, width: isMobile ? '92%' : '400px', padding: isMobile ? '25px 20px' : '40px'}}>
             <h2 style={{fontWeight: '300', marginBottom: '30px', color: '#fff'}}>{t.matchOptions}</h2>
             <div style={styles.configRow}>
               <span style={styles.configLabel}>{t.matchDuration}</span>
@@ -708,7 +735,7 @@ const FutebolBolinhas = () => {
                 <button onClick={() => setHoleSize(50)} style={holeSize === 50 ? styles.pillActive : styles.pillInactive}>{t.wide}</button>
               </div>
             </div>
-            <div style={{display:'flex', gap:'20px', width:'100%'}}>
+            <div style={{display:'flex', gap:'20px', width:'100%', flexDirection: isMobile ? 'column' : 'row'}}>
               <div style={styles.configRow}>
                 <span style={styles.configLabel}>{t.extraTimeOpt}</span>
                 <div style={styles.pillGroup}>
@@ -731,27 +758,27 @@ const FutebolBolinhas = () => {
 
       {phase === 'GAMEOVER' && (
         <div style={styles.overlay}>
-          <h1 style={{fontSize: isMobile ? '22px' : '28px', letterSpacing:'8px', fontWeight: '300'}}>{t.fullTime}</h1>
-          <h3 style={{color: '#00ff66', marginBottom:'30px', fontWeight:'400', fontSize:'14px'}}>
+          <h1 style={{fontSize: isMobile ? '22px' : '28px', letterSpacing:'8px', fontWeight: '300', textAlign: 'center'}}>{t.fullTime}</h1>
+          <h3 style={{color: '#00ff66', marginBottom:'30px', fontWeight:'400', fontSize:'14px', textAlign: 'center'}}>
             {penScore1 > 0 || penScore2 > 0 ? `${t.penaltyWin} (${penScore1} - ${penScore2})` : isExtraTime ? t.extraTimeOpt.toUpperCase() : t.regularTime}
           </h3>
           <div style={styles.finalScoreRow}>
             <div style={styles.finalTeamBox}>
-               <img src={team1?.img} style={{width: isMobile ? '50px' : '80px', height: isMobile ? '50px' : '80px', objectFit:'contain'}} />
-               <span>{team1?.name}</span>
+               <img src={team1?.img} style={{width: isMobile ? '50px' : '80px', height: isMobile ? '50px' : '80px', objectFit:'contain'}} alt="" />
+               <span style={{textAlign: 'center'}}>{team1?.name}</span>
             </div>
             <div style={{...styles.bigScore, fontSize: isMobile ? '40px' : '60px'}}>
               <span>{score1}</span><span style={{fontSize: isMobile ? '20px' : '30px', color:'#333', fontWeight:'300'}}>x</span><span>{score2}</span>
             </div>
             <div style={styles.finalTeamBox}>
-               <img src={team2?.img} style={{width: isMobile ? '50px' : '80px', height: isMobile ? '50px' : '80px', objectFit:'contain'}} />
-               <span>{team2?.name}</span>
+               <img src={team2?.img} style={{width: isMobile ? '50px' : '80px', height: isMobile ? '50px' : '80px', objectFit:'contain'}} alt="" />
+               <span style={{textAlign: 'center'}}>{team2?.name}</span>
             </div>
           </div>
-          <h2 style={{fontSize: isMobile ? '20px' : '24px', margin: '30px 0', fontWeight: '400'}}>
+          <h2 style={{fontSize: isMobile ? '20px' : '24px', margin: '30px 0', fontWeight: '400', textAlign: 'center'}}>
              {score1 > score2 || penScore1 > penScore2 ? `${team1.name} ${t.wins}` : score2 > score1 || penScore2 > penScore1 ? `${team2.name} ${t.wins}` : t.draw}
           </h2>
-          <button onClick={() => { setPhase('MENU'); setTeam1(null); setTeam2(null); setActiveSelection(1); }} style={styles.btnSlim}>{t.playAgain}</button>
+          <button onClick={() => { setPhase('MENU'); setTeam1(null); setTeam2(null); setActiveSelection(1); }} style={{...styles.btnSlim, minHeight: isMobile ? '48px' : 'auto'}}>{t.playAgain}</button>
         </div>
       )}
 
@@ -761,7 +788,7 @@ const FutebolBolinhas = () => {
         {phase !== 'PENALTIES' && (
           <div style={{...styles.scoreboard, gap: isMobile ? '20px' : '40px'}}>
             <div style={styles.scoreTeamBox}>
-              <img src={team1?.img || ''} style={{...styles.scoreLogo, width: isMobile ? '30px' : '40px', height: isMobile ? '30px' : '40px'}} />
+              <img src={team1?.img || ''} style={{...styles.scoreLogo, width: isMobile ? '30px' : '40px', height: isMobile ? '30px' : '40px'}} alt="" />
               <span style={{...styles.scoreNum, fontSize: isMobile ? '28px' : '38px'}}>{score1}</span>
             </div>
             <div style={styles.timerBox}>
@@ -770,7 +797,7 @@ const FutebolBolinhas = () => {
             </div>
             <div style={styles.scoreTeamBox}>
               <span style={{...styles.scoreNum, fontSize: isMobile ? '28px' : '38px'}}>{score2}</span>
-              <img src={team2?.img || ''} style={{...styles.scoreLogo, width: isMobile ? '30px' : '40px', height: isMobile ? '30px' : '40px'}} />
+              <img src={team2?.img || ''} style={{...styles.scoreLogo, width: isMobile ? '30px' : '40px', height: isMobile ? '30px' : '40px'}} alt="" />
             </div>
           </div>
         )}
@@ -818,7 +845,10 @@ const FutebolBolinhas = () => {
                  return (
                    <div key={i} id={`trail-${ball.id}-${i}`} 
                      style={{
-                       ...styles.ball, width: BALL_RADIUS*2, height: BALL_RADIUS*2, zIndex: 5, 
+                       ...styles.ball, 
+                       width: ballRadiusRef.current * 2, 
+                       height: ballRadiusRef.current * 2, 
+                       zIndex: 5, 
                        backgroundImage: `url(${ball.team.img})`, backgroundSize: 'contain',
                        backgroundPosition: 'center', opacity: trailOpacity, filter: 'grayscale(30%) brightness(0.7)', willChange: 'transform, opacity'
                      }} 
@@ -827,7 +857,10 @@ const FutebolBolinhas = () => {
               })}
               <div ref={el => ballRefs.current[ball.id] = el}
                 style={{
-                  ...styles.ball, width: BALL_RADIUS * 2, height: BALL_RADIUS * 2, display: phase === 'MENU' ? 'none' : 'block',
+                  ...styles.ball, 
+                  width: ballRadiusRef.current * 2, 
+                  height: ballRadiusRef.current * 2, 
+                  display: phase === 'MENU' ? 'none' : 'block',
                   backgroundImage: `url(${ball.team.img})`, backgroundSize: 'contain', 
                   backgroundPosition: 'center', backgroundRepeat: 'no-repeat', zIndex: 10
                 }}
@@ -841,6 +874,7 @@ const FutebolBolinhas = () => {
   );
 };
 
+// O seu objeto de estilos ORIGINAL está exatamente como você mandou:
 const styles = {
   container: { position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#09090e', color: '#e2e8f0', fontFamily: '"Inter", "Segoe UI", Roboto, Helvetica, sans-serif', overflow: 'hidden', userSelect: 'none' },
   announcementBox: { position: 'absolute', top: '50%', left: '50%', zIndex: 1000, fontSize: '5vw', fontWeight: '800', color: '#fff', textShadow: '0 0 20px #000, 0 0 40px #00ff66', textAlign: 'center', pointerEvents: 'none', whiteSpace: 'nowrap', fontStyle: 'italic' },
