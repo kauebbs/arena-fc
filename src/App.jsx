@@ -752,6 +752,7 @@ const FutebolBolinhas = () => {
         <div style={styles.settingsModal}>
           <div style={{...styles.settingsContent, width: isMobile ? '92%' : '400px', padding: isMobile ? '25px 20px' : '40px'}}>
             <h2 style={{fontWeight: '300', marginBottom: '30px', color: '#fff'}}>{t.matchOptions}</h2>
+            
             <div style={styles.configRow}>
               <span style={styles.configLabel}>{t.matchDuration}</span>
               <div style={styles.pillGroup}>
@@ -760,6 +761,7 @@ const FutebolBolinhas = () => {
                 ))}
               </div>
             </div>
+
             <div style={styles.configRow}>
               <span style={styles.configLabel}>{t.gameMode}</span>
               <div style={styles.pillGroup}>
@@ -767,14 +769,23 @@ const FutebolBolinhas = () => {
                 <button onClick={() => setGameMode('penalties')} style={gameMode === 'penalties' ? styles.pillActive : styles.pillInactive}>{t.penaltiesOnly}</button>
               </div>
             </div>
+
             <div style={styles.configRow}>
-              <span style={styles.configLabel}>{t.goalSize}</span>
-              <div style={styles.pillGroup}>
-                <button onClick={() => setHoleSize(25)} style={holeSize === 25 ? styles.pillActive : styles.pillInactive}>{t.tight}</button>
-                <button onClick={() => setHoleSize(35)} style={holeSize === 35 ? styles.pillActive : styles.pillInactive}>{t.standard}</button>
-                <button onClick={() => setHoleSize(50)} style={holeSize === 50 ? styles.pillActive : styles.pillInactive}>{t.wide}</button>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <span style={styles.configLabel}>{t.goalSize}</span>
+                <span style={{ color: '#00ff66', fontSize: '12px', fontWeight: '600' }}>{holeSize}°</span>
               </div>
+              <input 
+                type="range" 
+                min="15" 
+                max="90" 
+                step="1"
+                value={holeSize} 
+                onChange={(e) => setHoleSize(Number(e.target.value))}
+                style={styles.slider}
+              />
             </div>
+
             <div style={{display:'flex', gap:'20px', width:'100%', flexDirection: isMobile ? 'column' : 'row'}}>
               <div style={styles.configRow}>
                 <span style={styles.configLabel}>{t.extraTimeOpt}</span>
@@ -791,6 +802,7 @@ const FutebolBolinhas = () => {
                 </div>
               </div>
             </div>
+            
             <button onClick={() => setShowSettings(false)} style={styles.closeModalBtn}>{t.save}</button>
           </div>
         </div>
@@ -973,7 +985,8 @@ const styles = {
   penTotal: { width: '35px', height: '35px', borderRadius: '50%', background: '#00ff66', color: '#000', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', marginLeft: '15px', boxShadow: '0 0 15px rgba(0,255,102,0.3)' },
   mobileLeagueTrigger: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', padding: '12px 24px', background: 'rgba(0, 255, 102, 0.1)', border: '1px solid #00ff66', borderRadius: '25px', color: '#00ff66', fontSize: '13px', fontWeight: '500', cursor: 'pointer', transition: '0.2s', minWidth: '200px' },
   mobileLeagueModalOverlay: { position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' },
-  mobileLeagueCard: { background: '#0f172a', width: '100%', borderTopLeftRadius: '24px', borderTopRightRadius: '24px', padding: '25px 20px', paddingBottom: '40px', borderTop: '1px solid rgba(255,255,255,0.1)', animation: 'slideUp 0.3s ease-out' }
+  mobileLeagueCard: { background: '#0f172a', width: '100%', borderTopLeftRadius: '24px', borderTopRightRadius: '24px', padding: '25px 20px', paddingBottom: '40px', borderTop: '1px solid rgba(255,255,255,0.1)', animation: 'slideUp 0.3s ease-out' },
+  slider: { width: '100%', cursor: 'pointer', accentColor: '#00ff66', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '5px', outline: 'none', appearance: 'auto' }
 };
 
 export default FutebolBolinhas;
