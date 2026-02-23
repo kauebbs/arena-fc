@@ -22,6 +22,7 @@ const i18n = {
     home: 'MANDANTE',
     away: 'VISITANTE',
     select: 'Selecionar...',
+    selectLeague: 'Selecionar Liga',
     startMatch: 'INICIAR PARTIDA',
     goPenalties: 'IR PARA PÊNALTIS',
     fetching: 'Buscando base de dados...',
@@ -72,6 +73,7 @@ const i18n = {
     home: 'HOME',
     away: 'AWAY',
     select: 'Select...',
+    selectLeague: 'Select League',
     startMatch: 'START MATCH',
     goPenalties: 'GO TO PENALTIES',
     fetching: 'Fetching database...',
@@ -144,7 +146,6 @@ const DURATIONS = [
   { id: 'grande', i18nKey: 'grande', reg: 120, ext: 40 }
 ];
 
-// O raio da bola virou dinâmico e será controlado por uma Ref no React
 const GRAVITY = 0;           
 const BOUNCE_IMPULSE = 1.0;  
 const FRICTION = 1.0;        
@@ -162,9 +163,10 @@ const FutebolBolinhas = () => {
   const langRef = useRef('pt');
 
   const [isMobile, setIsMobile] = useState(false);
-  const ballRadiusRef = useRef(28); // REF PARA O TAMANHO DA BOLA DINÂMICO
+  const ballRadiusRef = useRef(28);
 
   const [activeLeagueId, setActiveLeagueId] = useState('PAULISTAO');
+  const [showMobileLeagues, setShowMobileLeagues] = useState(false);
   const [displayedTeams, setDisplayedTeams] = useState(PAULISTAO_TEAMS);
   const teamsCache = useRef({ 'PAULISTAO': PAULISTAO_TEAMS });
   const [loading, setLoading] = useState(false);
@@ -259,6 +261,7 @@ const FutebolBolinhas = () => {
   const handleLeagueChange = async (league) => {
     setActiveLeagueId(league.id);
     setErrorMsg('');
+    setShowMobileLeagues(false);
     if (teamsCache.current[league.id]) {
       setDisplayedTeams(teamsCache.current[league.id]);
       return;
@@ -285,7 +288,6 @@ const FutebolBolinhas = () => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
       
-      // Ajusta o raio da bola dependendo da tela:
       ballRadiusRef.current = mobile ? 16 : 28;
 
       const offsetHeight = phase === 'PENALTIES' ? (mobile ? 200 : 280) : (mobile ? 100 : 130);
@@ -476,7 +478,6 @@ const FutebolBolinhas = () => {
     const pState = penRef.current;
     const { holeSize } = configRef.current; 
     
-    // Puxando o raio dinâmico direto da Ref
     const currentBallRadius = ballRadiusRef.current;
     
     const wallWidth = 15; 
@@ -612,6 +613,8 @@ const FutebolBolinhas = () => {
     setLang(prev => prev === 'pt' ? 'en' : 'pt');
   };
 
+  const activeLeagueObj = LEAGUES.find(l => l.id === activeLeagueId);
+
   return (
     <div style={styles.container}>
       
@@ -622,6 +625,7 @@ const FutebolBolinhas = () => {
           0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.4; }
           50% { transform: translate(-50%, -50%) scale(1.4) translateY(-3px); opacity: 0.8; }
         }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
         .announcement-text { animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
         ::-webkit-scrollbar { width: 6px; height: 6px; background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(0, 255, 102, 0.3); border-radius: 10px; }
@@ -667,22 +671,32 @@ const FutebolBolinhas = () => {
               )}
             </div>
           </div>
-          <div style={{...styles.leaguesContainer, padding: isMobile ? '15px 10px' : '10px 20px'}}>
-            {LEAGUES.map(league => (
-              <button key={league.id} onClick={() => handleLeagueChange(league)}
-                style={{
-                  ...styles.leagueBtn,
-                  background: activeLeagueId === league.id ? 'rgba(0, 255, 102, 0.15)' : 'rgba(255,255,255,0.03)',
-                  borderColor: activeLeagueId === league.id ? '#00ff66' : 'rgba(255,255,255,0.1)',
-                  color: activeLeagueId === league.id ? '#00ff66' : '#aaa',
-                  padding: isMobile ? '12px 20px' : '8px 16px',
-                  minHeight: isMobile ? '44px' : 'auto'
-                }}>
-                <img src={league.img} style={styles.leagueIcon} alt={league.name}/>
-                {t[league.i18nKey]}
+          
+          {isMobile ? (
+            <div style={{ width: '100%', display: 'flex', justifyContent: 'center', padding: '10px 0' }}>
+              <button onClick={() => setShowMobileLeagues(true)} style={styles.mobileLeagueTrigger}>
+                <img src={activeLeagueObj?.img} style={styles.leagueIcon} alt="" />
+                {t[activeLeagueObj?.i18nKey] || t.selectLeague}
+                <span style={{ marginLeft: '10px', fontSize: '10px' }}>▼</span>
               </button>
-            ))}
-          </div>
+            </div>
+          ) : (
+            <div style={{...styles.leaguesContainer, padding: '10px 20px'}}>
+              {LEAGUES.map(league => (
+                <button key={league.id} onClick={() => handleLeagueChange(league)}
+                  style={{
+                    ...styles.leagueBtn,
+                    background: activeLeagueId === league.id ? 'rgba(0, 255, 102, 0.15)' : 'rgba(255,255,255,0.03)',
+                    borderColor: activeLeagueId === league.id ? '#00ff66' : 'rgba(255,255,255,0.1)',
+                    color: activeLeagueId === league.id ? '#00ff66' : '#aaa'
+                  }}>
+                  <img src={league.img} style={styles.leagueIcon} alt={league.name}/>
+                  {t[league.i18nKey]}
+                </button>
+              ))}
+            </div>
+          )}
+
           <div style={styles.gridWrapper}>
             {loading ? (
                <div style={{color:'#00ff66', marginTop:'50px', fontWeight:'300', textAlign: 'center'}}>{t.fetching}</div>
@@ -704,6 +718,32 @@ const FutebolBolinhas = () => {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {showMobileLeagues && isMobile && (
+        <div style={styles.mobileLeagueModalOverlay} onClick={() => setShowMobileLeagues(false)}>
+          <div style={styles.mobileLeagueCard} onClick={e => e.stopPropagation()}>
+            <h3 style={{ color: '#fff', marginBottom: '20px', fontWeight: '400', textAlign: 'center', fontSize: '16px' }}>{t.selectLeague}</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '50vh', overflowY: 'auto', paddingBottom: '20px' }}>
+              {LEAGUES.map(league => (
+                <button key={league.id} onClick={() => handleLeagueChange(league)}
+                  style={{
+                    ...styles.leagueBtn,
+                    background: activeLeagueId === league.id ? 'rgba(0, 255, 102, 0.15)' : 'rgba(255,255,255,0.03)',
+                    borderColor: activeLeagueId === league.id ? '#00ff66' : 'rgba(255,255,255,0.1)',
+                    color: activeLeagueId === league.id ? '#00ff66' : '#aaa',
+                    padding: '12px 20px',
+                    minHeight: '48px',
+                    width: '100%',
+                    justifyContent: 'flex-start'
+                  }}>
+                  <img src={league.img} style={styles.leagueIcon} alt={league.name}/>
+                  {t[league.i18nKey]}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -874,7 +914,6 @@ const FutebolBolinhas = () => {
   );
 };
 
-// O seu objeto de estilos ORIGINAL está exatamente como você mandou:
 const styles = {
   container: { position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#09090e', color: '#e2e8f0', fontFamily: '"Inter", "Segoe UI", Roboto, Helvetica, sans-serif', overflow: 'hidden', userSelect: 'none' },
   announcementBox: { position: 'absolute', top: '50%', left: '50%', zIndex: 1000, fontSize: '5vw', fontWeight: '800', color: '#fff', textShadow: '0 0 20px #000, 0 0 40px #00ff66', textAlign: 'center', pointerEvents: 'none', whiteSpace: 'nowrap', fontStyle: 'italic' },
@@ -931,7 +970,10 @@ const styles = {
   penRow: { display: 'flex', alignItems: 'center', gap: '6px' },
   penLogo: { width: '30px', height: '30px', objectFit: 'contain', marginRight: '15px' },
   penBox: { width: '30px', height: '30px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' },
-  penTotal: { width: '35px', height: '35px', borderRadius: '50%', background: '#00ff66', color: '#000', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', marginLeft: '15px', boxShadow: '0 0 15px rgba(0,255,102,0.3)' }
+  penTotal: { width: '35px', height: '35px', borderRadius: '50%', background: '#00ff66', color: '#000', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', marginLeft: '15px', boxShadow: '0 0 15px rgba(0,255,102,0.3)' },
+  mobileLeagueTrigger: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', padding: '12px 24px', background: 'rgba(0, 255, 102, 0.1)', border: '1px solid #00ff66', borderRadius: '25px', color: '#00ff66', fontSize: '13px', fontWeight: '500', cursor: 'pointer', transition: '0.2s', minWidth: '200px' },
+  mobileLeagueModalOverlay: { position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' },
+  mobileLeagueCard: { background: '#0f172a', width: '100%', borderTopLeftRadius: '24px', borderTopRightRadius: '24px', padding: '25px 20px', paddingBottom: '40px', borderTop: '1px solid rgba(255,255,255,0.1)', animation: 'slideUp 0.3s ease-out' }
 };
 
 export default FutebolBolinhas;
