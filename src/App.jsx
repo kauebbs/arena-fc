@@ -171,12 +171,42 @@ const TRAIL_LENGTH = 8;
 
 const randomRange = (min, max) => Math.random() * (max - min) + min;
 
+const AdBanner = ({ adKey, width, height, style }) => {
+  const bannerRef = useRef(null);
+
+  useEffect(() => {
+    if (!bannerRef.current || bannerRef.current.hasChildNodes()) return;
+    if (!adKey || adKey.includes('CHAVE')) return;
+
+    const conf = document.createElement('script');
+    conf.type = 'text/javascript';
+    conf.innerHTML = `atOptions = { 'key' : '${adKey}', 'format' : 'iframe', 'height' : ${height}, 'width' : ${width}, 'params' : {} };`;
+
+    const script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.src = `//www.highperformanceformat.com/${adKey}/invoke.js`;
+
+    bannerRef.current.append(conf);
+    bannerRef.current.append(script);
+  }, [adKey, width, height]);
+
+  return (
+    <div style={{ ...style, width, height, display: 'flex', justifyContent: 'center', alignItems: 'center', background: 'rgba(255,255,255,0.05)', overflow: 'hidden' }}>
+      <div ref={bannerRef} style={{ width, height }}></div>
+      {(!adKey || adKey.includes('CHAVE')) && (
+        <span style={{ position: 'absolute', color: '#666', fontSize: '10px' }}>AD {width}x{height}</span>
+      )}
+    </div>
+  );
+};
+
 const FutebolBolinhas = () => {
   const [lang, setLang] = useState('pt');
   const t = i18n[lang];
   const langRef = useRef('pt');
 
   const [isMobile, setIsMobile] = useState(false);
+  const [screenWidth, setScreenWidth] = useState(window.innerWidth);
   const ballRadiusRef = useRef(28);
 
   const [activeLeagueId, setActiveLeagueId] = useState('PAULISTAO');
@@ -307,10 +337,11 @@ const FutebolBolinhas = () => {
     const handleResize = () => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
+      setScreenWidth(window.innerWidth);
       
       ballRadiusRef.current = mobile ? 16 : 28;
 
-      const offsetHeight = phase === 'PENALTIES' ? (mobile ? 200 : 280) : (mobile ? 100 : 130);
+      const offsetHeight = phase === 'PENALTIES' ? (mobile ? 240 : 360) : (mobile ? 160 : 220);
       const availableHeight = window.innerHeight - offsetHeight; 
       const availableWidth = window.innerWidth - (mobile ? 20 : 40);
 
@@ -783,19 +814,22 @@ const FutebolBolinhas = () => {
             ) : errorMsg ? (
                <div style={{color:'#ff3366', marginTop:'50px', textAlign: 'center'}}>{errorMsg}</div>
             ) : (
-              <div style={{...styles.grid, gridTemplateColumns: isMobile ? 'repeat(auto-fill, minmax(80px, 1fr))' : 'repeat(auto-fill, minmax(90px, 1fr))'}}>
-                {displayedTeams.map(team => (
-                  <button key={team.id} onClick={() => handleTeamSelect(team)}
-                    style={{
-                      ...styles.card,
-                      border: ((activeSelection===1 && team1?.id === team.id) || (activeSelection===2 && team2?.id === team.id)) ? '1px solid #00ff66' : '1px solid rgba(255,255,255,0.05)',
-                      opacity: (team1?.id === team.id || team2?.id === team.id) ? 0.3 : 1,
-                      padding: isMobile ? '20px 5px' : '15px 10px'
-                    }}>
-                    <img src={team.img} alt={team.name} style={{...styles.cardImg, width: isMobile ? '35px' : '40px', height: isMobile ? '35px' : '40px'}} />
-                    <span style={{...styles.cardText, fontSize: isMobile ? '10px' : '11px'}}>{team.name}</span>
-                  </button>
-                ))}
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <div style={{...styles.grid, gridTemplateColumns: isMobile ? 'repeat(auto-fill, minmax(80px, 1fr))' : 'repeat(auto-fill, minmax(90px, 1fr))'}}>
+                  {displayedTeams.map(team => (
+                    <button key={team.id} onClick={() => handleTeamSelect(team)}
+                      style={{
+                        ...styles.card,
+                        border: ((activeSelection===1 && team1?.id === team.id) || (activeSelection===2 && team2?.id === team.id)) ? '1px solid #00ff66' : '1px solid rgba(255,255,255,0.05)',
+                        opacity: (team1?.id === team.id || team2?.id === team.id) ? 0.3 : 1,
+                        padding: isMobile ? '20px 5px' : '15px 10px'
+                      }}>
+                      <img src={team.img} alt={team.name} style={{...styles.cardImg, width: isMobile ? '35px' : '40px', height: isMobile ? '35px' : '40px'}} />
+                      <span style={{...styles.cardText, fontSize: isMobile ? '10px' : '11px'}}>{team.name}</span>
+                    </button>
+                  ))}
+                </div>
+                <div style={{ height: isMobile ? '80px' : '150px', width: '100%', flexShrink: 0 }} />
               </div>
             )}
           </div>
@@ -909,64 +943,75 @@ const FutebolBolinhas = () => {
 
       {phase === 'LEG_TRANSITION' && (
         <div style={styles.overlay}>
-          <h1 style={{fontSize: isMobile ? '22px' : '28px', letterSpacing:'8px', fontWeight: '300', textAlign: 'center'}}>{t.leg1End}</h1>
-          <div style={{...styles.finalScoreRow, marginTop: '30px'}}>
-            <div style={styles.finalTeamBox}>
-               <img src={team1?.img} style={{width: isMobile ? '50px' : '80px', height: isMobile ? '50px' : '80px', objectFit:'contain'}} alt="" />
-               <span style={{textAlign: 'center'}}>{team1?.name}</span>
+          <div style={styles.overlayInner}>
+            <h1 style={{fontSize: isMobile ? '22px' : '28px', letterSpacing:'8px', fontWeight: '300', textAlign: 'center'}}>{t.leg1End}</h1>
+            <div style={{...styles.finalScoreRow, marginTop: '30px'}}>
+              <div style={styles.finalTeamBox}>
+                 <img src={team1?.img} style={{width: isMobile ? '50px' : '80px', height: isMobile ? '50px' : '80px', objectFit:'contain'}} alt="" />
+                 <span style={{textAlign: 'center'}}>{team1?.name}</span>
+              </div>
+              <div style={{...styles.bigScore, fontSize: isMobile ? '40px' : '60px'}}>
+                <span>{score1}</span><span style={{fontSize: isMobile ? '20px' : '30px', color:'#333', fontWeight:'300'}}>x</span><span>{score2}</span>
+              </div>
+              <div style={styles.finalTeamBox}>
+                 <img src={team2?.img} style={{width: isMobile ? '50px' : '80px', height: isMobile ? '50px' : '80px', objectFit:'contain'}} alt="" />
+                 <span style={{textAlign: 'center'}}>{team2?.name}</span>
+              </div>
             </div>
-            <div style={{...styles.bigScore, fontSize: isMobile ? '40px' : '60px'}}>
-              <span>{score1}</span><span style={{fontSize: isMobile ? '20px' : '30px', color:'#333', fontWeight:'300'}}>x</span><span>{score2}</span>
-            </div>
-            <div style={styles.finalTeamBox}>
-               <img src={team2?.img} style={{width: isMobile ? '50px' : '80px', height: isMobile ? '50px' : '80px', objectFit:'contain'}} alt="" />
-               <span style={{textAlign: 'center'}}>{team2?.name}</span>
-            </div>
+            <button onClick={startLeg2} style={{...styles.btnSlim, minHeight: isMobile ? '48px' : 'auto', marginTop: '30px'}}>{t.startLeg2}</button>
           </div>
-          <button onClick={startLeg2} style={{...styles.btnSlim, minHeight: isMobile ? '48px' : 'auto', marginTop: '30px'}}>{t.startLeg2}</button>
         </div>
       )}
 
       {phase === 'GAMEOVER' && (
         <div style={styles.overlay}>
-          <h1 style={{fontSize: isMobile ? '22px' : '28px', letterSpacing:'8px', fontWeight: '300', textAlign: 'center'}}>{t.fullTime}</h1>
-          <h3 style={{color: '#00ff66', marginBottom:'30px', fontWeight:'400', fontSize:'14px', textAlign: 'center'}}>
-            {penScore1 > 0 || penScore2 > 0 ? `${t.penaltyWin} (${penScore1} - ${penScore2})` : isExtraTime ? t.extraTimeOpt.toUpperCase() : t.regularTime}
-          </h3>
-          <div style={styles.finalScoreRow}>
-            <div style={styles.finalTeamBox}>
-               <img src={team1?.img} style={{width: isMobile ? '50px' : '80px', height: isMobile ? '50px' : '80px', objectFit:'contain'}} alt="" />
-               <span style={{textAlign: 'center'}}>{team1?.name}</span>
+          <div style={styles.overlayInner}>
+            <h1 style={{fontSize: isMobile ? '22px' : '28px', letterSpacing:'8px', fontWeight: '300', textAlign: 'center'}}>{t.fullTime}</h1>
+            <h3 style={{color: '#00ff66', marginBottom:'30px', fontWeight:'400', fontSize:'14px', textAlign: 'center'}}>
+              {penScore1 > 0 || penScore2 > 0 ? `${t.penaltyWin} (${penScore1} - ${penScore2})` : isExtraTime ? t.extraTimeOpt.toUpperCase() : t.regularTime}
+            </h3>
+            <div style={styles.finalScoreRow}>
+              <div style={styles.finalTeamBox}>
+                 <img src={team1?.img} style={{width: isMobile ? '50px' : '80px', height: isMobile ? '50px' : '80px', objectFit:'contain'}} alt="" />
+                 <span style={{textAlign: 'center'}}>{team1?.name}</span>
+              </div>
+              <div style={{...styles.bigScore, fontSize: isMobile ? '40px' : '60px'}}>
+                {gameMode === 'custom' ? (
+                  <><span>{score1}</span><span style={{fontSize: isMobile ? '20px' : '30px', color:'#333', fontWeight:'300'}}>x</span><span>{score2}</span></>
+                ) : (
+                  <><span>{getTotalScores().s1}</span><span style={{fontSize: isMobile ? '20px' : '30px', color:'#333', fontWeight:'300'}}>x</span><span>{getTotalScores().s2}</span></>
+                )}
+              </div>
+              <div style={styles.finalTeamBox}>
+                 <img src={team2?.img} style={{width: isMobile ? '50px' : '80px', height: isMobile ? '50px' : '80px', objectFit:'contain'}} alt="" />
+                 <span style={{textAlign: 'center'}}>{team2?.name}</span>
+              </div>
             </div>
-            <div style={{...styles.bigScore, fontSize: isMobile ? '40px' : '60px'}}>
-              {gameMode === 'custom' ? (
-                <><span>{score1}</span><span style={{fontSize: isMobile ? '20px' : '30px', color:'#333', fontWeight:'300'}}>x</span><span>{score2}</span></>
-              ) : (
-                <><span>{getTotalScores().s1}</span><span style={{fontSize: isMobile ? '20px' : '30px', color:'#333', fontWeight:'300'}}>x</span><span>{getTotalScores().s2}</span></>
-              )}
-            </div>
-            <div style={styles.finalTeamBox}>
-               <img src={team2?.img} style={{width: isMobile ? '50px' : '80px', height: isMobile ? '50px' : '80px', objectFit:'contain'}} alt="" />
-               <span style={{textAlign: 'center'}}>{team2?.name}</span>
-            </div>
-          </div>
-          
-          {(gameMode === 'twoLegs' || gameMode === 'custom') && (
-            <div style={{color:'#94a3b8', fontSize:'14px', marginTop:'-10px', marginBottom:'20px'}}>
-              {gameMode === 'custom' ? `${t.agg}: ${getTotalScores().s1} x ${getTotalScores().s2}` : `${t.match}: ${score1} x ${score2}`}
-            </div>
-          )}
+            
+            {(gameMode === 'twoLegs' || gameMode === 'custom') && (
+              <div style={{color:'#94a3b8', fontSize:'14px', marginTop:'-10px', marginBottom:'20px'}}>
+                {gameMode === 'custom' ? `${t.agg}: ${getTotalScores().s1} x ${getTotalScores().s2}` : `${t.match}: ${score1} x ${score2}`}
+              </div>
+            )}
 
-          <h2 style={{fontSize: isMobile ? '20px' : '24px', margin: '20px 0', fontWeight: '400', textAlign: 'center'}}>
-             {getTotalScores().s1 > getTotalScores().s2 || penScore1 > penScore2 ? `${team1.name} ${t.wins}` : getTotalScores().s2 > getTotalScores().s1 || penScore2 > penScore1 ? `${team2.name} ${t.wins}` : t.draw}
-          </h2>
-          <button onClick={() => { setPhase('MENU'); setTeam1(null); setTeam2(null); setActiveSelection(1); }} style={{...styles.btnSlim, minHeight: isMobile ? '48px' : 'auto'}}>{t.playAgain}</button>
+            <h2 style={{fontSize: isMobile ? '20px' : '24px', margin: '20px 0', fontWeight: '400', textAlign: 'center'}}>
+               {getTotalScores().s1 > getTotalScores().s2 || penScore1 > penScore2 ? `${team1.name} ${t.wins}` : getTotalScores().s2 > getTotalScores().s1 || penScore2 > penScore1 ? `${team2.name} ${t.wins}` : t.draw}
+            </h2>
+            <button onClick={() => { setPhase('MENU'); setTeam1(null); setTeam2(null); setActiveSelection(1); }} style={{...styles.btnSlim, minHeight: isMobile ? '48px' : 'auto'}}>{t.playAgain}</button>
+            
+            <AdBanner 
+              adKey="ab2562001c353492d452f42882ac6043" 
+              width={300} 
+              height={250} 
+              style={{ marginTop: '40px', flexShrink: 0 }} 
+            />
+          </div>
         </div>
       )}
 
       {announcement && <div className="announcement-text" style={styles.announcementBox}>{announcement}</div>}
 
-      <div style={{...styles.gameContainer, opacity: phase === 'MENU' ? 0 : 1, display: phase === 'MENU' ? 'none' : 'flex'}}>
+      <div style={{...styles.gameContainer, opacity: phase === 'MENU' ? 0 : 1, display: phase === 'MENU' ? 'none' : 'flex', paddingBottom: isMobile ? '60px' : '110px', boxSizing: 'border-box' }}>
         {phase !== 'PENALTIES' && (
           <div style={{...styles.scoreboard, gap: isMobile ? '20px' : '40px', position: 'relative'}}>
             <div style={styles.scoreTeamBox}>
@@ -1058,6 +1103,23 @@ const FutebolBolinhas = () => {
         </div>
         {phase === 'PENALTIES' && renderPenaltyGrid()}
       </div>
+
+      {!isMobile && screenWidth > 1000 && phase !== 'GAMEOVER' && phase !== 'LEG_TRANSITION' && (
+        <>
+          <AdBanner adKey="782ac45dec73c499422c2d09890a4aed" width={160} height={600} style={styles.leftBanner} />
+          <AdBanner adKey="782ac45dec73c499422c2d09890a4aed" width={160} height={600} style={styles.rightBanner} />
+        </>
+      )}
+
+      {phase !== 'GAMEOVER' && phase !== 'LEG_TRANSITION' && (
+         <AdBanner 
+           adKey={isMobile ? "CHAVE_320x50_AQUI" : "4d5beb57fcf81eeffa93e7e5748bd367"} 
+           width={isMobile ? 320 : 728} 
+           height={isMobile ? 50 : 90} 
+           style={styles.bottomBanner} 
+         />
+      )}
+
     </div>
   );
 };
@@ -1066,7 +1128,7 @@ const styles = {
   container: { position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#09090e', color: '#e2e8f0', fontFamily: '"Inter", "Segoe UI", Roboto, Helvetica, sans-serif', overflow: 'hidden', userSelect: 'none' },
   announcementBox: { position: 'absolute', top: '50%', left: '50%', zIndex: 1000, fontSize: '5vw', fontWeight: '800', color: '#fff', textShadow: '0 0 20px #000, 0 0 40px #00ff66', textAlign: 'center', pointerEvents: 'none', whiteSpace: 'nowrap', fontStyle: 'italic' },
   menuOverlay: { position: 'absolute', zIndex: 50, width: '100%', height: '100%', background: 'radial-gradient(circle at top, #111827 0%, #0f172a 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center' },
-  header: { width: '100%', padding: '40px 20px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center' },
+  header: { width: '100%', padding: '40px 20px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 },
   menuTitle: { fontSize: '28px', letterSpacing: '6px', fontWeight: '300', color: '#fff', marginBottom: '40px' },
   dashboardRow: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '30px', width: '100%', maxWidth: '700px' },
   dashCard: { flex: 1, height: '140px', background: 'rgba(255,255,255,0.02)', borderRadius: '20px', backdropFilter: 'blur(10px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.3s', position: 'relative' },
@@ -1086,10 +1148,10 @@ const styles = {
   pillActive: { flex: '1 1 40%', padding: '10px', background: '#334155', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '11px', fontWeight: '500', cursor: 'pointer', transition:'0.2s', boxShadow: '0 2px 5px rgba(0,0,0,0.2)', textAlign: 'center' },
   pillInactive: { flex: '1 1 40%', padding: '10px', background: 'transparent', color: '#64748b', border: 'none', borderRadius: '8px', fontSize: '11px', cursor: 'pointer', transition:'0.2s', textAlign: 'center' },
   closeModalBtn: { marginTop: '10px', padding: '15px', background: '#00ff66', color: '#000', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: '600', letterSpacing:'1px' },
-  leaguesContainer: { display: 'flex', gap: '10px', padding: '10px 20px', overflowX: 'auto', width: '100%', justifyContent: 'center', marginBottom: '20px' },
+  leaguesContainer: { display: 'flex', gap: '10px', padding: '10px 20px', overflowX: 'auto', width: '100%', justifyContent: 'center', marginBottom: '20px', flexShrink: 0 },
   leagueBtn: { display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '20px', border: '1px solid', cursor: 'pointer', fontSize: '12px', fontWeight: '400', whiteSpace: 'nowrap', transition: '0.2s' },
   leagueIcon: { width: '18px', height: '18px', objectFit: 'contain' },
-  gridWrapper: { flex: 1, overflowY: 'auto', width: '100%', paddingBottom:'40px', minHeight: 0 },
+  gridWrapper: { flex: 1, overflowY: 'auto', width: '100%', minHeight: 0 },
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: '10px', width: '90%', maxWidth: '1000px', padding: '10px', margin: '0 auto' },
   card: { background: 'transparent', borderRadius: '16px', padding: '15px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', transition: '0.2s', cursor: 'pointer' },
   cardImg: { width: '40px', height: '40px', objectFit: 'contain', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' },
@@ -1109,7 +1171,8 @@ const styles = {
   pitchPenaltyBoxRight: { position: 'absolute', right: 0, width: '15%', height: '40%', border: '2px solid rgba(255,255,255,0.08)', borderRight: 'none', zIndex: 2 },
   rotatingLayer: { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', willChange: 'transform', zIndex: 3 },
   ball: { position: 'absolute', borderRadius: '50%', willChange: 'transform', background: 'transparent' },
-  overlay: { position: 'absolute', zIndex: 100, top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(9, 9, 14, 0.95)', backdropFilter: 'blur(10px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' },
+  overlay: { position: 'absolute', zIndex: 100, top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(9, 9, 14, 0.95)', backdropFilter: 'blur(10px)', overflowY: 'auto' },
+  overlayInner: { minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', boxSizing: 'border-box' },
   finalScoreRow: { display: 'flex', alignItems: 'center', gap: '50px', marginBottom: '20px' },
   finalTeamBox: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px', fontSize: '14px', fontWeight: '400', color: '#cbd5e1' },
   bigScore: { display: 'flex', gap: '25px', fontSize: '60px', fontWeight: '300', alignItems: 'center', color: '#fff' },
@@ -1123,7 +1186,10 @@ const styles = {
   mobileLeagueModalOverlay: { position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' },
   mobileLeagueCard: { background: '#0f172a', width: '100%', borderTopLeftRadius: '24px', borderTopRightRadius: '24px', padding: '25px 20px', paddingBottom: '40px', borderTop: '1px solid rgba(255,255,255,0.1)', animation: 'slideUp 0.3s ease-out' },
   slider: { width: '100%', cursor: 'pointer', accentColor: '#00ff66', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '5px', outline: 'none', appearance: 'auto' },
-  aggInput: { width: '40px', height: '30px', background: '#334155', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#fff', textAlign: 'center', fontSize: '14px', outline: 'none' }
+  aggInput: { width: '40px', height: '30px', background: '#334155', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#fff', textAlign: 'center', fontSize: '14px', outline: 'none' },
+  leftBanner: { position: 'fixed', left: '10px', top: '50%', transform: 'translateY(-50%)', zIndex: 10 },
+  rightBanner: { position: 'fixed', right: '10px', top: '50%', transform: 'translateY(-50%)', zIndex: 10 },
+  bottomBanner: { position: 'fixed', bottom: '0px', left: '50%', transform: 'translateX(-50%)', zIndex: 60 }
 };
 
 export default FutebolBolinhas;
