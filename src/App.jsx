@@ -31,7 +31,10 @@ const i18n = {
     matchDuration: 'Duração do Jogo',
     gameMode: 'Modo de Jogo',
     normal: 'Normal',
+    twoLegs: 'Ida e Volta',
+    customMode: 'Personalizado',
     penaltiesOnly: 'Só Pênaltis',
+    customAgg: 'Agregado Inicial',
     goalSize: 'Tamanho do Gol',
     tight: 'Apertado',
     standard: 'Padrão',
@@ -50,8 +53,12 @@ const i18n = {
     round: 'RODADA',
     extraTimeAnnounce: 'PRORROGAÇÃO!',
     fullTime: 'FIM DE JOGO!',
+    leg1End: 'FIM DA IDA',
+    startLeg2: 'INICIAR VOLTA',
     penaltyWin: 'VITÓRIA NOS PÊNALTIS',
     regularTime: 'TEMPO REGULAMENTAR',
+    agg: 'AGR',
+    match: 'Partida',
     wins: 'VENCEU!',
     draw: 'EMPATE!',
     playAgain: 'Jogar Novamente'
@@ -82,7 +89,10 @@ const i18n = {
     matchDuration: 'Match Duration',
     gameMode: 'Game Mode',
     normal: 'Normal',
+    twoLegs: 'Two-Legged',
+    customMode: 'Custom',
     penaltiesOnly: 'Penalties Only',
+    customAgg: 'Starting Aggregate',
     goalSize: 'Goal Size',
     tight: 'Tight',
     standard: 'Standard',
@@ -101,8 +111,12 @@ const i18n = {
     round: 'ROUND',
     extraTimeAnnounce: 'EXTRA TIME!',
     fullTime: 'FULL TIME!',
+    leg1End: 'FIRST LEG OVER',
+    startLeg2: 'START 2ND LEG',
     penaltyWin: 'PENALTY SHOOTOUT WIN',
     regularTime: 'REGULAR TIME',
+    agg: 'AGG',
+    match: 'Match',
     wins: 'WINS!',
     draw: 'DRAW!',
     playAgain: 'Play Again'
@@ -178,6 +192,12 @@ const FutebolBolinhas = () => {
   const [enableExtraTime, setEnableExtraTime] = useState(true);
   const [enablePenalties, setEnablePenalties] = useState(true);
   const [holeSize, setHoleSize] = useState(45); 
+
+  const [currentLeg, setCurrentLeg] = useState(1);
+  const [agg1, setAgg1] = useState(0);
+  const [agg2, setAgg2] = useState(0);
+  const [customAgg1, setCustomAgg1] = useState(0);
+  const [customAgg2, setCustomAgg2] = useState(0);
   
   const configRef = useRef({ holeSize: 45, gameMode: 'normal' });
 
@@ -315,14 +335,34 @@ const FutebolBolinhas = () => {
     }
   };
 
+  const getTotalScores = () => {
+    if (gameMode === 'twoLegs' && currentLeg === 2) return { s1: agg1 + score1, s2: agg2 + score2 };
+    if (gameMode === 'custom') return { s1: agg1 + score1, s2: agg2 + score2 };
+    return { s1: score1, s2: score2 };
+  };
+
+  const getRefTotalScores = () => {
+    if (gameMode === 'twoLegs' && currentLeg === 2) return { s1: agg1 + scoreRef.current.s1, s2: agg2 + scoreRef.current.s2 };
+    if (gameMode === 'custom') return { s1: agg1 + scoreRef.current.s1, s2: agg2 + scoreRef.current.s2 };
+    return { s1: scoreRef.current.s1, s2: scoreRef.current.s2 };
+  };
+
   const startGame = () => {
     if (!team1 || !team2) return;
-    setScore1(0); setScore2(0); setPenScore1(0); setPenScore2(0);
+    setScore1(0); setScore2(0); scoreRef.current = { s1: 0, s2: 0 }; 
+    setPenScore1(0); setPenScore2(0);
     setPenHistory1([]); setPenHistory2([]);
-    scoreRef.current = { s1: 0, s2: 0 }; 
     setGameTime(0); setIsExtraTime(false);
     penRef.current = { active: false, turn: 1, round: 1, shotInProgress: false, s1: 0, s2: 0, shots1: 0, shots2: 0, h1: [], h2: [] };
     
+    if (gameMode === 'twoLegs') {
+      setCurrentLeg(1); setAgg1(0); setAgg2(0);
+    } else if (gameMode === 'custom') {
+      setCurrentLeg(2); setAgg1(customAgg1); setAgg2(customAgg2);
+    } else {
+      setCurrentLeg(1); setAgg1(0); setAgg2(0);
+    }
+
     gameState.current.isPlaying = true;
     gameState.current.rotation = 0;
 
@@ -342,6 +382,35 @@ const FutebolBolinhas = () => {
         audioCrowdBg.current.currentTime = 0;
         audioCrowdBg.current.play().catch(() => {});
     }
+  };
+
+  const startLeg2 = () => {
+    setScore1(0); setScore2(0); scoreRef.current = { s1: 0, s2: 0 };
+    setGameTime(0); setIsExtraTime(false);
+    setCurrentLeg(2);
+    gameState.current.isPlaying = true;
+    gameState.current.rotation = 0;
+    
+    gameState.current.balls = [
+      { id: 1, x: randomRange(40, 80), y: randomRange(-50, 50), vx: randomRange(-8, -4), vy: randomRange(-5, 5) || -3, team: team1, scored: false, trail: [] },
+      { id: 2, x: randomRange(-80, -40), y: randomRange(-50, 50), vx: randomRange(4, 8), vy: randomRange(-5, 5) || 3, team: team2, scored: false, trail: [] }
+    ];
+    setPhase('PLAYING');
+    showAnnouncement(t.matchStarts);
+    if (audioCrowdBg.current) { audioCrowdBg.current.play().catch(()=>{}); }
+  };
+
+  const handleLegTransition = () => {
+    clearInterval(timerRef.current);
+    gameState.current.isPlaying = false;
+    setPhase('LEG_TRANSITION');
+    
+    setAgg1(scoreRef.current.s1);
+    setAgg2(scoreRef.current.s2);
+    
+    showAnnouncement(t.leg1End);
+    if (audioEnd.current) { audioEnd.current.currentTime = 0; audioEnd.current.play().catch(()=>{}); }
+    if (audioCrowdBg.current) audioCrowdBg.current.pause();
   };
 
   const startPenalties = () => {
@@ -426,8 +495,17 @@ const FutebolBolinhas = () => {
         const nextTime = prev + 1;
         const config = DURATIONS.find(d => d.id === selectedDuration);
         const totalDuration = isExtraTime ? (config.reg + config.ext) : config.reg;
+        
         if (prev === config.reg && !isExtraTime) {
-          if (scoreRef.current.s1 === scoreRef.current.s2) { 
+          const totals = getRefTotalScores();
+          const isLastLeg = (gameMode !== 'twoLegs' || currentLeg === 2);
+
+          if (!isLastLeg) {
+             handleLegTransition();
+             return prev;
+          }
+
+          if (totals.s1 === totals.s2) { 
             if (enableExtraTime) {
               setIsExtraTime(true);
               showAnnouncement(i18n[langRef.current].extraTimeAnnounce);
@@ -440,8 +518,10 @@ const FutebolBolinhas = () => {
             } else { endGame(); return prev; }
           } else { endGame(); return prev; }
         }
+
         if (nextTime >= totalDuration && isExtraTime) { 
-          if (scoreRef.current.s1 === scoreRef.current.s2) { 
+          const totals = getRefTotalScores();
+          if (totals.s1 === totals.s2) { 
             if (enablePenalties) { startPenalties(); return prev; }
             else { endGame(); return totalDuration; }
           } else { endGame(); return totalDuration; }
@@ -450,7 +530,7 @@ const FutebolBolinhas = () => {
       });
     }, 1000); 
     return () => clearInterval(timerRef.current);
-  }, [phase, isExtraTime, selectedDuration, enableExtraTime, enablePenalties]);
+  }, [phase, isExtraTime, selectedDuration, enableExtraTime, enablePenalties, gameMode, currentLeg, agg1, agg2]);
 
   const endGame = () => {
     clearInterval(timerRef.current);
@@ -666,7 +746,7 @@ const FutebolBolinhas = () => {
             <div style={{height: '50px', marginTop: '25px', width: '100%', display: 'flex', justifyContent: 'center'}}>
               {team1 && team2 && (
                 <button onClick={startGame} style={{...styles.playBtn, padding: isMobile ? '0 40px' : '16px 45px', minHeight: isMobile ? '48px' : 'auto', fontSize: isMobile ? '14px' : '13px'}}>
-                  {gameMode === 'normal' ? t.startMatch : t.goPenalties}
+                  {gameMode === 'normal' || gameMode === 'twoLegs' || gameMode === 'custom' ? t.startMatch : t.goPenalties}
                 </button>
               )}
             </div>
@@ -750,8 +830,8 @@ const FutebolBolinhas = () => {
 
       {showSettings && (
         <div style={styles.settingsModal}>
-          <div style={{...styles.settingsContent, width: isMobile ? '92%' : '400px', padding: isMobile ? '25px 20px' : '40px'}}>
-            <h2 style={{fontWeight: '300', marginBottom: '30px', color: '#fff'}}>{t.matchOptions}</h2>
+          <div style={{...styles.settingsContent, width: isMobile ? '92%' : '420px', padding: isMobile ? '25px 20px' : '30px'}}>
+            <h2 style={{fontWeight: '300', marginBottom: '20px', color: '#fff', textAlign: 'center'}}>{t.matchOptions}</h2>
             
             <div style={styles.configRow}>
               <span style={styles.configLabel}>{t.matchDuration}</span>
@@ -766,9 +846,28 @@ const FutebolBolinhas = () => {
               <span style={styles.configLabel}>{t.gameMode}</span>
               <div style={styles.pillGroup}>
                 <button onClick={() => setGameMode('normal')} style={gameMode === 'normal' ? styles.pillActive : styles.pillInactive}>{t.normal}</button>
+                <button onClick={() => setGameMode('twoLegs')} style={gameMode === 'twoLegs' ? styles.pillActive : styles.pillInactive}>{t.twoLegs}</button>
+                <button onClick={() => setGameMode('custom')} style={gameMode === 'custom' ? styles.pillActive : styles.pillInactive}>{t.customMode}</button>
                 <button onClick={() => setGameMode('penalties')} style={gameMode === 'penalties' ? styles.pillActive : styles.pillInactive}>{t.penaltiesOnly}</button>
               </div>
             </div>
+
+            {gameMode === 'custom' && (
+              <div style={{...styles.configRow}}>
+                <span style={styles.configLabel}>{t.customAgg}</span>
+                <div style={{ display: 'flex', gap: '15px', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)', padding: '10px', borderRadius: '12px' }}>
+                  <div style={{display:'flex', flexDirection:'column', alignItems:'center'}}>
+                    <span style={{fontSize:'10px', color:'#94a3b8', marginBottom: '5px'}}>{t.home}</span>
+                    <input type="number" min="0" value={customAgg1} onChange={e => setCustomAgg1(Math.max(0, parseInt(e.target.value)||0))} style={styles.aggInput} />
+                  </div>
+                  <span style={{color:'#64748b'}}>X</span>
+                  <div style={{display:'flex', flexDirection:'column', alignItems:'center'}}>
+                    <span style={{fontSize:'10px', color:'#94a3b8', marginBottom: '5px'}}>{t.away}</span>
+                    <input type="number" min="0" value={customAgg2} onChange={e => setCustomAgg2(Math.max(0, parseInt(e.target.value)||0))} style={styles.aggInput} />
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div style={styles.configRow}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
@@ -786,7 +885,7 @@ const FutebolBolinhas = () => {
               />
             </div>
 
-            <div style={{display:'flex', gap:'20px', width:'100%', flexDirection: isMobile ? 'column' : 'row'}}>
+            <div style={{display:'flex', gap:'10px', width:'100%', flexDirection: isMobile ? 'column' : 'row'}}>
               <div style={styles.configRow}>
                 <span style={styles.configLabel}>{t.extraTimeOpt}</span>
                 <div style={styles.pillGroup}>
@@ -808,13 +907,10 @@ const FutebolBolinhas = () => {
         </div>
       )}
 
-      {phase === 'GAMEOVER' && (
+      {phase === 'LEG_TRANSITION' && (
         <div style={styles.overlay}>
-          <h1 style={{fontSize: isMobile ? '22px' : '28px', letterSpacing:'8px', fontWeight: '300', textAlign: 'center'}}>{t.fullTime}</h1>
-          <h3 style={{color: '#00ff66', marginBottom:'30px', fontWeight:'400', fontSize:'14px', textAlign: 'center'}}>
-            {penScore1 > 0 || penScore2 > 0 ? `${t.penaltyWin} (${penScore1} - ${penScore2})` : isExtraTime ? t.extraTimeOpt.toUpperCase() : t.regularTime}
-          </h3>
-          <div style={styles.finalScoreRow}>
+          <h1 style={{fontSize: isMobile ? '22px' : '28px', letterSpacing:'8px', fontWeight: '300', textAlign: 'center'}}>{t.leg1End}</h1>
+          <div style={{...styles.finalScoreRow, marginTop: '30px'}}>
             <div style={styles.finalTeamBox}>
                <img src={team1?.img} style={{width: isMobile ? '50px' : '80px', height: isMobile ? '50px' : '80px', objectFit:'contain'}} alt="" />
                <span style={{textAlign: 'center'}}>{team1?.name}</span>
@@ -827,8 +923,42 @@ const FutebolBolinhas = () => {
                <span style={{textAlign: 'center'}}>{team2?.name}</span>
             </div>
           </div>
-          <h2 style={{fontSize: isMobile ? '20px' : '24px', margin: '30px 0', fontWeight: '400', textAlign: 'center'}}>
-             {score1 > score2 || penScore1 > penScore2 ? `${team1.name} ${t.wins}` : score2 > score1 || penScore2 > penScore1 ? `${team2.name} ${t.wins}` : t.draw}
+          <button onClick={startLeg2} style={{...styles.btnSlim, minHeight: isMobile ? '48px' : 'auto', marginTop: '30px'}}>{t.startLeg2}</button>
+        </div>
+      )}
+
+      {phase === 'GAMEOVER' && (
+        <div style={styles.overlay}>
+          <h1 style={{fontSize: isMobile ? '22px' : '28px', letterSpacing:'8px', fontWeight: '300', textAlign: 'center'}}>{t.fullTime}</h1>
+          <h3 style={{color: '#00ff66', marginBottom:'30px', fontWeight:'400', fontSize:'14px', textAlign: 'center'}}>
+            {penScore1 > 0 || penScore2 > 0 ? `${t.penaltyWin} (${penScore1} - ${penScore2})` : isExtraTime ? t.extraTimeOpt.toUpperCase() : t.regularTime}
+          </h3>
+          <div style={styles.finalScoreRow}>
+            <div style={styles.finalTeamBox}>
+               <img src={team1?.img} style={{width: isMobile ? '50px' : '80px', height: isMobile ? '50px' : '80px', objectFit:'contain'}} alt="" />
+               <span style={{textAlign: 'center'}}>{team1?.name}</span>
+            </div>
+            <div style={{...styles.bigScore, fontSize: isMobile ? '40px' : '60px'}}>
+              {gameMode === 'custom' ? (
+                <><span>{score1}</span><span style={{fontSize: isMobile ? '20px' : '30px', color:'#333', fontWeight:'300'}}>x</span><span>{score2}</span></>
+              ) : (
+                <><span>{getTotalScores().s1}</span><span style={{fontSize: isMobile ? '20px' : '30px', color:'#333', fontWeight:'300'}}>x</span><span>{getTotalScores().s2}</span></>
+              )}
+            </div>
+            <div style={styles.finalTeamBox}>
+               <img src={team2?.img} style={{width: isMobile ? '50px' : '80px', height: isMobile ? '50px' : '80px', objectFit:'contain'}} alt="" />
+               <span style={{textAlign: 'center'}}>{team2?.name}</span>
+            </div>
+          </div>
+          
+          {(gameMode === 'twoLegs' || gameMode === 'custom') && (
+            <div style={{color:'#94a3b8', fontSize:'14px', marginTop:'-10px', marginBottom:'20px'}}>
+              {gameMode === 'custom' ? `${t.agg}: ${getTotalScores().s1} x ${getTotalScores().s2}` : `${t.match}: ${score1} x ${score2}`}
+            </div>
+          )}
+
+          <h2 style={{fontSize: isMobile ? '20px' : '24px', margin: '20px 0', fontWeight: '400', textAlign: 'center'}}>
+             {getTotalScores().s1 > getTotalScores().s2 || penScore1 > penScore2 ? `${team1.name} ${t.wins}` : getTotalScores().s2 > getTotalScores().s1 || penScore2 > penScore1 ? `${team2.name} ${t.wins}` : t.draw}
           </h2>
           <button onClick={() => { setPhase('MENU'); setTeam1(null); setTeam2(null); setActiveSelection(1); }} style={{...styles.btnSlim, minHeight: isMobile ? '48px' : 'auto'}}>{t.playAgain}</button>
         </div>
@@ -838,7 +968,7 @@ const FutebolBolinhas = () => {
 
       <div style={{...styles.gameContainer, opacity: phase === 'MENU' ? 0 : 1, display: phase === 'MENU' ? 'none' : 'flex'}}>
         {phase !== 'PENALTIES' && (
-          <div style={{...styles.scoreboard, gap: isMobile ? '20px' : '40px'}}>
+          <div style={{...styles.scoreboard, gap: isMobile ? '20px' : '40px', position: 'relative'}}>
             <div style={styles.scoreTeamBox}>
               <img src={team1?.img || ''} style={{...styles.scoreLogo, width: isMobile ? '30px' : '40px', height: isMobile ? '30px' : '40px'}} alt="" />
               <span style={{...styles.scoreNum, fontSize: isMobile ? '28px' : '38px'}}>{score1}</span>
@@ -851,6 +981,12 @@ const FutebolBolinhas = () => {
               <span style={{...styles.scoreNum, fontSize: isMobile ? '28px' : '38px'}}>{score2}</span>
               <img src={team2?.img || ''} style={{...styles.scoreLogo, width: isMobile ? '30px' : '40px', height: isMobile ? '30px' : '40px'}} alt="" />
             </div>
+
+            {(gameMode === 'twoLegs' || gameMode === 'custom') && phase === 'PLAYING' && (
+              <div style={{ position: 'absolute', bottom: '-20px', left: '50%', transform: 'translateX(-50%)', color: '#00ff66', fontSize: '11px', fontWeight: '600', letterSpacing: '1px', background: 'rgba(0,0,0,0.5)', padding: '2px 8px', borderRadius: '10px', whiteSpace: 'nowrap' }}>
+                {t.agg}: {agg1 + score1} - {agg2 + score2}
+              </div>
+            )}
           </div>
         )}
         
@@ -943,12 +1079,12 @@ const styles = {
   langBtn: { position: 'absolute', top: '25px', left: '30px', fontSize: '12px', letterSpacing: '1px', background: 'rgba(255,255,255,0.05)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '20px', padding: '8px 16px', cursor: 'pointer', zIndex: 60, transition: '0.2s' },
   settingsBtn: { position: 'absolute', top: '25px', right: '30px', fontSize: '12px', letterSpacing: '1px', background: 'rgba(255,255,255,0.05)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '20px', padding: '8px 16px', cursor: 'pointer', zIndex: 60, transition: '0.2s' },
   settingsModal: { position: 'absolute', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  settingsContent: { background: '#0f172a', padding: '40px', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', width: '400px', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' },
-  configRow: { display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px', width: '100%' },
+  settingsContent: { background: '#0f172a', padding: '30px', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', width: '400px', boxShadow: '0 20px 50px rgba(0,0,0,0.5)', maxHeight: '95vh', overflowY: 'auto' },
+  configRow: { display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '15px', width: '100%' },
   configLabel: { fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px' },
-  pillGroup: { display: 'flex', background: 'rgba(0,0,0,0.3)', borderRadius: '12px', padding: '4px' },
-  pillActive: { flex: 1, padding: '10px', background: '#334155', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: '500', cursor: 'pointer', transition:'0.2s', boxShadow: '0 2px 5px rgba(0,0,0,0.2)' },
-  pillInactive: { flex: 1, padding: '10px', background: 'transparent', color: '#64748b', border: 'none', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', transition:'0.2s' },
+  pillGroup: { display: 'flex', flexWrap: 'wrap', background: 'rgba(0,0,0,0.3)', borderRadius: '12px', padding: '4px' },
+  pillActive: { flex: '1 1 40%', padding: '10px', background: '#334155', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '11px', fontWeight: '500', cursor: 'pointer', transition:'0.2s', boxShadow: '0 2px 5px rgba(0,0,0,0.2)', textAlign: 'center' },
+  pillInactive: { flex: '1 1 40%', padding: '10px', background: 'transparent', color: '#64748b', border: 'none', borderRadius: '8px', fontSize: '11px', cursor: 'pointer', transition:'0.2s', textAlign: 'center' },
   closeModalBtn: { marginTop: '10px', padding: '15px', background: '#00ff66', color: '#000', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: '600', letterSpacing:'1px' },
   leaguesContainer: { display: 'flex', gap: '10px', padding: '10px 20px', overflowX: 'auto', width: '100%', justifyContent: 'center', marginBottom: '20px' },
   leagueBtn: { display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '20px', border: '1px solid', cursor: 'pointer', fontSize: '12px', fontWeight: '400', whiteSpace: 'nowrap', transition: '0.2s' },
@@ -986,7 +1122,8 @@ const styles = {
   mobileLeagueTrigger: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', padding: '12px 24px', background: 'rgba(0, 255, 102, 0.1)', border: '1px solid #00ff66', borderRadius: '25px', color: '#00ff66', fontSize: '13px', fontWeight: '500', cursor: 'pointer', transition: '0.2s', minWidth: '200px' },
   mobileLeagueModalOverlay: { position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' },
   mobileLeagueCard: { background: '#0f172a', width: '100%', borderTopLeftRadius: '24px', borderTopRightRadius: '24px', padding: '25px 20px', paddingBottom: '40px', borderTop: '1px solid rgba(255,255,255,0.1)', animation: 'slideUp 0.3s ease-out' },
-  slider: { width: '100%', cursor: 'pointer', accentColor: '#00ff66', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '5px', outline: 'none', appearance: 'auto' }
+  slider: { width: '100%', cursor: 'pointer', accentColor: '#00ff66', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '5px', outline: 'none', appearance: 'auto' },
+  aggInput: { width: '40px', height: '30px', background: '#334155', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#fff', textAlign: 'center', fontSize: '14px', outline: 'none' }
 };
 
 export default FutebolBolinhas;
