@@ -2,12 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import confetti from 'canvas-confetti';
 
-const API_TOKEN = '876e29ef7a0048eeb9a1aa777c57f4e9';
+// ATENÇÃO: Coloque aqui a sua chave (API Key) gerada no painel da API-Sports
+const API_TOKEN = '2c47dd68ec1a1d490e84c68076fbc49a'; 
 
 const i18n = {
   pt: {
     paulistao: 'Paulistão',
     brasileirao: 'Brasileirão',
+    serieB: 'Série B',
+    libertadores: 'Libertadores',
+    argentino: 'Argentino',
     worldCup: 'Copa do Mundo',
     champions: 'Champions',
     premierLeague: 'Premier League',
@@ -66,6 +70,9 @@ const i18n = {
   en: {
     paulistao: 'Paulistão',
     brasileirao: 'Brasileirão',
+    serieB: 'Série B',
+    libertadores: 'Libertadores',
+    argentino: 'Argentine League',
     worldCup: 'World Cup',
     champions: 'Champions',
     premierLeague: 'Premier League',
@@ -124,14 +131,17 @@ const i18n = {
 };
 
 const LEAGUES = [
-  { id: 'PAULISTAO', i18nKey: 'paulistao', code: null, img: 'https://upload.wikimedia.org/wikipedia/pt/thumb/1/1c/Paulist%C3%A3o_2026.png/330px-Paulist%C3%A3o_2026.png' },
-  { id: 'BSA', i18nKey: 'brasileirao', code: 'BSA', img: 'https://upload.wikimedia.org/wikipedia/pt/thumb/7/75/Campeonato_Brasileiro_de_Futebol_de_2024_-_S%C3%A9rie_A.png/330px-Campeonato_Brasileiro_de_Futebol_de_2024_-_S%C3%A9rie_A.png' },
-  { id: 'WC', i18nKey: 'worldCup', code: 'WC', img: 'https://upload.wikimedia.org/wikipedia/pt/d/d7/Logo_copa_2026.png' },
-  { id: 'CL', i18nKey: 'champions', code: 'CL', img: 'https://upload.wikimedia.org/wikipedia/commons/f/f3/Logo_UEFA_Champions_League.png' },
-  { id: 'PL', i18nKey: 'premierLeague', code: 'PL', img: 'https://b.fssta.com/uploads/application/soccer/competition-logos/EnglishPremierLeague.png' },
-  { id: 'PD', i18nKey: 'laLiga', code: 'PD', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0f/LaLiga_logo_2023.svg/1200px-LaLiga_logo_2023.svg.png' },
-  { id: 'BL1', i18nKey: 'bundesliga', code: 'BL1', img: 'https://upload.wikimedia.org/wikipedia/en/thumb/d/df/Bundesliga_logo_%282017%29.svg/1200px-Bundesliga_logo_%282017%29.svg.png' },
-  { id: 'SA', i18nKey: 'serieA', code: 'SA', img: 'https://www.ogol.com.br/img/logos/edicoes/135636_imgbank_.png' },
+  { id: 'PAULISTAO', i18nKey: 'paulistao', code: null, season: null, img: 'https://upload.wikimedia.org/wikipedia/pt/thumb/1/1c/Paulist%C3%A3o_2026.png/330px-Paulist%C3%A3o_2026.png' },
+  { id: 'BSA', i18nKey: 'brasileirao', code: 71, season: 2024, img: 'https://upload.wikimedia.org/wikipedia/pt/thumb/7/75/Campeonato_Brasileiro_de_Futebol_de_2024_-_S%C3%A9rie_A.png/330px-Campeonato_Brasileiro_de_Futebol_de_2024_-_S%C3%A9rie_A.png' },
+  { id: 'BSB', i18nKey: 'serieB', code: 72, season: 2024, img: 'https://upload.wikimedia.org/wikipedia/pt/2/2d/Campeonato_Brasileiro_de_Futebol_S%C3%A9rie_B_2025.png' },
+  { id: 'LIB', i18nKey: 'libertadores', code: 13, season: 2024, img: 'https://upload.wikimedia.org/wikipedia/pt/thumb/9/95/Conmebol_Libertadores_logo.svg/1280px-Conmebol_Libertadores_logo.svg.png' },
+  { id: 'ARG', i18nKey: 'argentino', code: 128, season: 2024, img: 'https://a4.espncdn.com/combiner/i?img=%2Fi%2Fleaguelogos%2Fsoccer%2F500%2F1.png' },
+  { id: 'WC', i18nKey: 'worldCup', code: 1, season: 2022, img: 'https://upload.wikimedia.org/wikipedia/pt/d/d7/Logo_copa_2026.png' },
+  { id: 'CL', i18nKey: 'champions', code: 2, season: 2024, img: 'https://upload.wikimedia.org/wikipedia/commons/f/f3/Logo_UEFA_Champions_League.png' },
+  { id: 'PL', i18nKey: 'premierLeague', code: 39, season: 2024, img: 'https://b.fssta.com/uploads/application/soccer/competition-logos/EnglishPremierLeague.png' },
+  { id: 'PD', i18nKey: 'laLiga', code: 140, season: 2024, img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0f/LaLiga_logo_2023.svg/1200px-LaLiga_logo_2023.svg.png' },
+  { id: 'BL1', i18nKey: 'bundesliga', code: 78, season: 2024, img: 'https://upload.wikimedia.org/wikipedia/en/thumb/d/df/Bundesliga_logo_%282017%29.svg/1200px-Bundesliga_logo_%282017%29.svg.png' },
+  { id: 'SA', i18nKey: 'serieA', code: 135, season: 2024, img: 'https://www.ogol.com.br/img/logos/edicoes/135636_imgbank_.png' },
 ];
 
 const PAULISTAO_TEAMS = [
@@ -278,23 +288,42 @@ const FutebolBolinhas = () => {
     }
   };
 
+  // FUNÇÃO ATUALIZADA PARA API-FOOTBALL
   const handleLeagueChange = async (league) => {
     setActiveLeagueId(league.id);
     setErrorMsg('');
     setShowMobileLeagues(false);
+    
     if (teamsCache.current[league.id]) {
       setDisplayedTeams(teamsCache.current[league.id]);
       return;
     }
+    
+    if (!league.code) return; // Se for paulistão que já está no cache inicial
+
     setLoading(true);
     try {
-      const response = await axios.get(`/api/v4/competitions/${league.code}/teams`, { headers: { 'X-Auth-Token': API_TOKEN } });
-      if (response.data && response.data.teams) {
-        const apiTeams = response.data.teams.map(team => ({
-          id: team.id, name: team.shortName || team.name, img: team.crest, color: '#ffffff' 
+      const response = await axios.get('https://v3.football.api-sports.io/teams', {
+        params: {
+          league: league.code,
+          season: league.season
+        },
+        headers: {
+          'x-apisports-key': API_TOKEN 
+        }
+      });
+      
+      if (response.data && response.data.response) {
+        const apiTeams = response.data.response.map(item => ({
+          id: item.team.id, 
+          name: item.team.name, 
+          img: item.team.logo, 
+          color: '#ffffff' 
         }));
         teamsCache.current[league.id] = apiTeams;
         setDisplayedTeams(apiTeams);
+      } else if (response.data.errors && Object.keys(response.data.errors).length > 0) {
+        setErrorMsg('Erro na API: Verifique sua API Key ou limite de requisições.');
       }
     } catch (error) {
       setErrorMsg(i18n[langRef.current].errorDb);
@@ -909,64 +938,68 @@ const FutebolBolinhas = () => {
 
       {phase === 'LEG_TRANSITION' && (
         <div style={styles.overlay}>
-          <h1 style={{fontSize: isMobile ? '22px' : '28px', letterSpacing:'8px', fontWeight: '300', textAlign: 'center'}}>{t.leg1End}</h1>
-          <div style={{...styles.finalScoreRow, marginTop: '30px'}}>
-            <div style={styles.finalTeamBox}>
-               <img src={team1?.img} style={{width: isMobile ? '50px' : '80px', height: isMobile ? '50px' : '80px', objectFit:'contain'}} alt="" />
-               <span style={{textAlign: 'center'}}>{team1?.name}</span>
+          <div style={styles.overlayInner}>
+            <h1 style={{fontSize: isMobile ? '22px' : '28px', letterSpacing:'8px', fontWeight: '300', textAlign: 'center'}}>{t.leg1End}</h1>
+            <div style={{...styles.finalScoreRow, marginTop: '30px'}}>
+              <div style={styles.finalTeamBox}>
+                 <img src={team1?.img} style={{width: isMobile ? '50px' : '80px', height: isMobile ? '50px' : '80px', objectFit:'contain'}} alt="" />
+                 <span style={{textAlign: 'center'}}>{team1?.name}</span>
+              </div>
+              <div style={{...styles.bigScore, fontSize: isMobile ? '40px' : '60px'}}>
+                <span>{score1}</span><span style={{fontSize: isMobile ? '20px' : '30px', color:'#333', fontWeight:'300'}}>x</span><span>{score2}</span>
+              </div>
+              <div style={styles.finalTeamBox}>
+                 <img src={team2?.img} style={{width: isMobile ? '50px' : '80px', height: isMobile ? '50px' : '80px', objectFit:'contain'}} alt="" />
+                 <span style={{textAlign: 'center'}}>{team2?.name}</span>
+              </div>
             </div>
-            <div style={{...styles.bigScore, fontSize: isMobile ? '40px' : '60px'}}>
-              <span>{score1}</span><span style={{fontSize: isMobile ? '20px' : '30px', color:'#333', fontWeight:'300'}}>x</span><span>{score2}</span>
-            </div>
-            <div style={styles.finalTeamBox}>
-               <img src={team2?.img} style={{width: isMobile ? '50px' : '80px', height: isMobile ? '50px' : '80px', objectFit:'contain'}} alt="" />
-               <span style={{textAlign: 'center'}}>{team2?.name}</span>
-            </div>
+            <button onClick={startLeg2} style={{...styles.btnSlim, minHeight: isMobile ? '48px' : 'auto', marginTop: '30px'}}>{t.startLeg2}</button>
           </div>
-          <button onClick={startLeg2} style={{...styles.btnSlim, minHeight: isMobile ? '48px' : 'auto', marginTop: '30px'}}>{t.startLeg2}</button>
         </div>
       )}
 
       {phase === 'GAMEOVER' && (
         <div style={styles.overlay}>
-          <h1 style={{fontSize: isMobile ? '22px' : '28px', letterSpacing:'8px', fontWeight: '300', textAlign: 'center'}}>{t.fullTime}</h1>
-          <h3 style={{color: '#00ff66', marginBottom:'30px', fontWeight:'400', fontSize:'14px', textAlign: 'center'}}>
-            {penScore1 > 0 || penScore2 > 0 ? `${t.penaltyWin} (${penScore1} - ${penScore2})` : isExtraTime ? t.extraTimeOpt.toUpperCase() : t.regularTime}
-          </h3>
-          <div style={styles.finalScoreRow}>
-            <div style={styles.finalTeamBox}>
-               <img src={team1?.img} style={{width: isMobile ? '50px' : '80px', height: isMobile ? '50px' : '80px', objectFit:'contain'}} alt="" />
-               <span style={{textAlign: 'center'}}>{team1?.name}</span>
+          <div style={styles.overlayInner}>
+            <h1 style={{fontSize: isMobile ? '22px' : '28px', letterSpacing:'8px', fontWeight: '300', textAlign: 'center'}}>{t.fullTime}</h1>
+            <h3 style={{color: '#00ff66', marginBottom:'30px', fontWeight:'400', fontSize:'14px', textAlign: 'center'}}>
+              {penScore1 > 0 || penScore2 > 0 ? `${t.penaltyWin} (${penScore1} - ${penScore2})` : isExtraTime ? t.extraTimeOpt.toUpperCase() : t.regularTime}
+            </h3>
+            <div style={styles.finalScoreRow}>
+              <div style={styles.finalTeamBox}>
+                 <img src={team1?.img} style={{width: isMobile ? '50px' : '80px', height: isMobile ? '50px' : '80px', objectFit:'contain'}} alt="" />
+                 <span style={{textAlign: 'center'}}>{team1?.name}</span>
+              </div>
+              <div style={{...styles.bigScore, fontSize: isMobile ? '40px' : '60px'}}>
+                {gameMode === 'custom' ? (
+                  <><span>{score1}</span><span style={{fontSize: isMobile ? '20px' : '30px', color:'#333', fontWeight:'300'}}>x</span><span>{score2}</span></>
+                ) : (
+                  <><span>{getTotalScores().s1}</span><span style={{fontSize: isMobile ? '20px' : '30px', color:'#333', fontWeight:'300'}}>x</span><span>{getTotalScores().s2}</span></>
+                )}
+              </div>
+              <div style={styles.finalTeamBox}>
+                 <img src={team2?.img} style={{width: isMobile ? '50px' : '80px', height: isMobile ? '50px' : '80px', objectFit:'contain'}} alt="" />
+                 <span style={{textAlign: 'center'}}>{team2?.name}</span>
+              </div>
             </div>
-            <div style={{...styles.bigScore, fontSize: isMobile ? '40px' : '60px'}}>
-              {gameMode === 'custom' ? (
-                <><span>{score1}</span><span style={{fontSize: isMobile ? '20px' : '30px', color:'#333', fontWeight:'300'}}>x</span><span>{score2}</span></>
-              ) : (
-                <><span>{getTotalScores().s1}</span><span style={{fontSize: isMobile ? '20px' : '30px', color:'#333', fontWeight:'300'}}>x</span><span>{getTotalScores().s2}</span></>
-              )}
-            </div>
-            <div style={styles.finalTeamBox}>
-               <img src={team2?.img} style={{width: isMobile ? '50px' : '80px', height: isMobile ? '50px' : '80px', objectFit:'contain'}} alt="" />
-               <span style={{textAlign: 'center'}}>{team2?.name}</span>
-            </div>
-          </div>
-          
-          {(gameMode === 'twoLegs' || gameMode === 'custom') && (
-            <div style={{color:'#94a3b8', fontSize:'14px', marginTop:'-10px', marginBottom:'20px'}}>
-              {gameMode === 'custom' ? `${t.agg}: ${getTotalScores().s1} x ${getTotalScores().s2}` : `${t.match}: ${score1} x ${score2}`}
-            </div>
-          )}
+            
+            {(gameMode === 'twoLegs' || gameMode === 'custom') && (
+              <div style={{color:'#94a3b8', fontSize:'14px', marginTop:'-10px', marginBottom:'20px'}}>
+                {gameMode === 'custom' ? `${t.agg}: ${getTotalScores().s1} x ${getTotalScores().s2}` : `${t.match}: ${score1} x ${score2}`}
+              </div>
+            )}
 
-          <h2 style={{fontSize: isMobile ? '20px' : '24px', margin: '20px 0', fontWeight: '400', textAlign: 'center'}}>
-             {getTotalScores().s1 > getTotalScores().s2 || penScore1 > penScore2 ? `${team1.name} ${t.wins}` : getTotalScores().s2 > getTotalScores().s1 || penScore2 > penScore1 ? `${team2.name} ${t.wins}` : t.draw}
-          </h2>
-          <button onClick={() => { setPhase('MENU'); setTeam1(null); setTeam2(null); setActiveSelection(1); }} style={{...styles.btnSlim, minHeight: isMobile ? '48px' : 'auto'}}>{t.playAgain}</button>
+            <h2 style={{fontSize: isMobile ? '20px' : '24px', margin: '20px 0', fontWeight: '400', textAlign: 'center'}}>
+               {getTotalScores().s1 > getTotalScores().s2 || penScore1 > penScore2 ? `${team1.name} ${t.wins}` : getTotalScores().s2 > getTotalScores().s1 || penScore2 > penScore1 ? `${team2.name} ${t.wins}` : t.draw}
+            </h2>
+            <button onClick={() => { setPhase('MENU'); setTeam1(null); setTeam2(null); setActiveSelection(1); }} style={{...styles.btnSlim, minHeight: isMobile ? '48px' : 'auto'}}>{t.playAgain}</button>
+          </div>
         </div>
       )}
 
       {announcement && <div className="announcement-text" style={styles.announcementBox}>{announcement}</div>}
 
-      <div style={{...styles.gameContainer, opacity: phase === 'MENU' ? 0 : 1, display: phase === 'MENU' ? 'none' : 'flex'}}>
+      <div style={{...styles.gameContainer, opacity: phase === 'MENU' ? 0 : 1, display: phase === 'MENU' ? 'none' : 'flex' }}>
         {phase !== 'PENALTIES' && (
           <div style={{...styles.scoreboard, gap: isMobile ? '20px' : '40px', position: 'relative'}}>
             <div style={styles.scoreTeamBox}>
@@ -1058,6 +1091,9 @@ const FutebolBolinhas = () => {
         </div>
         {phase === 'PENALTIES' && renderPenaltyGrid()}
       </div>
+
+      
+
     </div>
   );
 };
@@ -1066,7 +1102,7 @@ const styles = {
   container: { position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#09090e', color: '#e2e8f0', fontFamily: '"Inter", "Segoe UI", Roboto, Helvetica, sans-serif', overflow: 'hidden', userSelect: 'none' },
   announcementBox: { position: 'absolute', top: '50%', left: '50%', zIndex: 1000, fontSize: '5vw', fontWeight: '800', color: '#fff', textShadow: '0 0 20px #000, 0 0 40px #00ff66', textAlign: 'center', pointerEvents: 'none', whiteSpace: 'nowrap', fontStyle: 'italic' },
   menuOverlay: { position: 'absolute', zIndex: 50, width: '100%', height: '100%', background: 'radial-gradient(circle at top, #111827 0%, #0f172a 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center' },
-  header: { width: '100%', padding: '40px 20px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center' },
+  header: { width: '100%', padding: '40px 20px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 },
   menuTitle: { fontSize: '28px', letterSpacing: '6px', fontWeight: '300', color: '#fff', marginBottom: '40px' },
   dashboardRow: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '30px', width: '100%', maxWidth: '700px' },
   dashCard: { flex: 1, height: '140px', background: 'rgba(255,255,255,0.02)', borderRadius: '20px', backdropFilter: 'blur(10px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.3s', position: 'relative' },
@@ -1086,10 +1122,10 @@ const styles = {
   pillActive: { flex: '1 1 40%', padding: '10px', background: '#334155', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '11px', fontWeight: '500', cursor: 'pointer', transition:'0.2s', boxShadow: '0 2px 5px rgba(0,0,0,0.2)', textAlign: 'center' },
   pillInactive: { flex: '1 1 40%', padding: '10px', background: 'transparent', color: '#64748b', border: 'none', borderRadius: '8px', fontSize: '11px', cursor: 'pointer', transition:'0.2s', textAlign: 'center' },
   closeModalBtn: { marginTop: '10px', padding: '15px', background: '#00ff66', color: '#000', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: '600', letterSpacing:'1px' },
-  leaguesContainer: { display: 'flex', gap: '10px', padding: '10px 20px', overflowX: 'auto', width: '100%', justifyContent: 'center', marginBottom: '20px' },
+  leaguesContainer: { display: 'flex', gap: '10px', padding: '10px 20px', overflowX: 'auto', width: '100%', justifyContent: 'center', marginBottom: '20px', flexShrink: 0 },
   leagueBtn: { display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '20px', border: '1px solid', cursor: 'pointer', fontSize: '12px', fontWeight: '400', whiteSpace: 'nowrap', transition: '0.2s' },
   leagueIcon: { width: '18px', height: '18px', objectFit: 'contain' },
-  gridWrapper: { flex: 1, overflowY: 'auto', width: '100%', paddingBottom:'40px', minHeight: 0 },
+  gridWrapper: { flex: 1, overflowY: 'auto', width: '100%', minHeight: 0 },
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: '10px', width: '90%', maxWidth: '1000px', padding: '10px', margin: '0 auto' },
   card: { background: 'transparent', borderRadius: '16px', padding: '15px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', transition: '0.2s', cursor: 'pointer' },
   cardImg: { width: '40px', height: '40px', objectFit: 'contain', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' },
@@ -1109,7 +1145,8 @@ const styles = {
   pitchPenaltyBoxRight: { position: 'absolute', right: 0, width: '15%', height: '40%', border: '2px solid rgba(255,255,255,0.08)', borderRight: 'none', zIndex: 2 },
   rotatingLayer: { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', willChange: 'transform', zIndex: 3 },
   ball: { position: 'absolute', borderRadius: '50%', willChange: 'transform', background: 'transparent' },
-  overlay: { position: 'absolute', zIndex: 100, top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(9, 9, 14, 0.95)', backdropFilter: 'blur(10px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' },
+  overlay: { position: 'absolute', zIndex: 100, top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(9, 9, 14, 0.95)', backdropFilter: 'blur(10px)', display: 'flex', overflowY: 'auto' },
+  overlayInner: { minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', boxSizing: 'border-box', margin: 'auto' },
   finalScoreRow: { display: 'flex', alignItems: 'center', gap: '50px', marginBottom: '20px' },
   finalTeamBox: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px', fontSize: '14px', fontWeight: '400', color: '#cbd5e1' },
   bigScore: { display: 'flex', gap: '25px', fontSize: '60px', fontWeight: '300', alignItems: 'center', color: '#fff' },
@@ -1123,7 +1160,10 @@ const styles = {
   mobileLeagueModalOverlay: { position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' },
   mobileLeagueCard: { background: '#0f172a', width: '100%', borderTopLeftRadius: '24px', borderTopRightRadius: '24px', padding: '25px 20px', paddingBottom: '40px', borderTop: '1px solid rgba(255,255,255,0.1)', animation: 'slideUp 0.3s ease-out' },
   slider: { width: '100%', cursor: 'pointer', accentColor: '#00ff66', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '5px', outline: 'none', appearance: 'auto' },
-  aggInput: { width: '40px', height: '30px', background: '#334155', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#fff', textAlign: 'center', fontSize: '14px', outline: 'none' }
+  aggInput: { width: '40px', height: '30px', background: '#334155', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#fff', textAlign: 'center', fontSize: '14px', outline: 'none' },
+  leftBanner: { position: 'fixed', left: '10px', top: '50%', transform: 'translateY(-50%)', zIndex: 10 },
+  rightBanner: { position: 'fixed', right: '10px', top: '50%', transform: 'translateY(-50%)', zIndex: 10 },
+  bottomBanner: { position: 'fixed', bottom: '0px', left: '50%', transform: 'translateX(-50%)', zIndex: 60 }
 };
 
 export default FutebolBolinhas;
